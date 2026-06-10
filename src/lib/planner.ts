@@ -1,9 +1,12 @@
-import type { AppState, Task, MicroThemeStatus, MicroThemeRef } from "./types";
+import type { AppState, Task, MicroThemeStatus, MicroThemeRef, BlocoTipo } from "./types";
 import { getAllMicrothemes } from "@/data/legalCurriculum";
 import { uid } from "./store-internal";
 
-const SLOT_HORAS = 1;
-const MAX_SLOTS_DIA = 3;
+// Blocos (minutos)
+const DUR_NOVO = 60;
+const DUR_REVISAO_ATIVA = 50;
+const DUR_REVISAO_ESPACADA = 25;
+const HORAS_POR_DIA = (DUR_NOVO + DUR_REVISAO_ATIVA + DUR_REVISAO_ESPACADA) / 60; // ~2.25h
 
 const PESO_STATUS: Record<MicroThemeStatus, number> = {
   nao_iniciado: 4,
@@ -17,7 +20,6 @@ function startOfToday() {
   d.setHours(0, 0, 0, 0);
   return d;
 }
-
 function addDays(d: Date, n: number): Date {
   const x = new Date(d);
   x.setDate(x.getDate() + n);
@@ -26,26 +28,23 @@ function addDays(d: Date, n: number): Date {
 
 interface Candidate {
   subjectId: string;
+  subjectNome: string;
   microthemeId: string;
-  themeNome: string;
   microthemeNome: string;
+  themeNome: string;
+  moduleNome: string;
+  status: MicroThemeStatus;
   peso: number;
 }
 
-export function generateWeeklyCycle(state: AppState): Task[] {
-  const user = state.user;
-  if (!user) return [];
-
+function buildCandidates(state: AppState): Candidate[] {
   const today = startOfToday();
   const horizonteAvaliacao = addDays(today, 14);
-
-  // 1) Coletar candidatos com peso
-  const candidatos: Candidate[] = [];
+  const out: Candidate[] = [];
   for (const subject of state.subjects) {
     if (!subject.subjectOnboardingCompleto) continue;
     const micros = getAllMicrothemes(subject.catalogId);
     if (micros.length === 0) continue;
-
     const temAvaliacaoProxima = state.assessments.some(
       (a) =>
         a.subjectId === subject.id &&
@@ -54,87 +53,129 @@ export function generateWeeklyCycle(state: AppState): Task[] {
     );
     const bonusAvaliacao = temAvaliacaoProxima ? 2 : 0;
     const bonusDificuldade = subject.dificuldade === "dificil" ? 1 : 0;
-
     for (const m of micros) {
       const prog = state.microthemeProgress.find(
         (p) => p.subjectId === subject.id && p.microthemeId === m.microthemeId,
       );
       const status = prog?.status ?? "nao_iniciado";
-      const base = PESO_STATUS[status];
-      if (base === 0) continue; // dominado entra só em revisão espaçada
-      candidatos.push({
+      out.push({
         subjectId: subject.id,
+        subjectNome: subject.nome,
         microthemeId: m.microthemeId,
-        themeNome: m.themeNome,
         microthemeNome: m.microthemeNome,
-        peso: base + bonusAvaliacao + bonusDificuldade,
+        themeNome: m.themeNome,
+        moduleNome: m.moduleNome,
+        status,
+        peso: PESO_STATUS[status] + bonusAvaliacao + bonusDificuldade,
       });
     }
   }
+  return out;
+}
 
+/** Pega o próximo candidato evitando repetir a mesma disciplina (se possível). */
+function takeNext(pool: Candidate[], avoidSubjectId?: string): Candidate | undefined {
+  if (pool.length === 0) return undefined;
+  const idx = avoidSubjectId
+    ? pool.findIndex((c) => c.subjectId !== avoidSubjectId)
+    : 0;
+  const pickIdx = idx === -1 ? 0 : idx;
+  return pool.splice(pickIdx, 1)[0];
+}
+
+function makeTask(
+  c: Candidate,
+  dayDate: Date,
+  bloco: BlocoTipo,
+  duracao: number,
+  ordemNoDia: number,
+): Task {
+  const data = new Date(dayDate);
+  data.setHours(9, 0, 0, 0);
+  const titulo =
+    bloco === "novo"
+      ? c.microthemeNome
+      : bloco === "revisao_ativa"
+        ? `Revisão ativa: ${c.microthemeNome}`
+        : `Revisão espaçada: ${c.microthemeNome}`;
+  return {
+    id: uid(),
+    subjectId: c.subjectId,
+    tipo: "estudo",
+    titulo,
+    descricao: `${c.subjectNome} · ${c.moduleNome} → ${c.themeNome}`,
+    prazo: data.toISOString(),
+    prioridade: c.peso >= 5 ? "alta" : c.peso >= 3 ? "media" : "baixa",
+    status: "pendente",
+    estimativaHoras: duracao / 60,
+    createdAt: new Date().toISOString(),
+    origem: "ciclo",
+    microthemeRef: { subjectId: c.subjectId, microthemeId: c.microthemeId },
+    bloco,
+    duracaoMinutos: duracao,
+    ordemNoDia,
+    moduloNome: c.moduleNome,
+    temaNome: c.themeNome,
+  };
+}
+
+export function generateWeeklyCycle(state: AppState): Task[] {
+  const user = state.user;
+  if (!user) return [];
+
+  const candidatos = buildCandidates(state);
   if (candidatos.length === 0) return [];
 
-  // 2) Ordenar por peso desc
-  candidatos.sort((a, b) => b.peso - a.peso);
+  // Pools por bloco
+  const novos = candidatos
+    .filter((c) => c.status === "nao_iniciado")
+    .sort((a, b) => b.peso - a.peso);
+  const ativos = candidatos
+    .filter((c) => c.status === "superficial" || c.status === "revisar")
+    .sort((a, b) => b.peso - a.peso);
+  const espacadas = candidatos
+    .filter((c) => c.status !== "nao_iniciado") // tudo que já foi visto pode ter revisão espaçada
+    .sort((a, b) => b.peso - a.peso);
 
-  // 3) Distribuir em slots (horasSemana // SLOT_HORAS), max 3/dia, evitando 2 seguidos da mesma disciplina
-  const totalSlots = Math.max(1, Math.min(21, Math.floor(user.horasSemana / SLOT_HORAS)));
-  const slotsPorDia: Record<number, Candidate[]> = {};
-  for (let i = 0; i < 7; i++) slotsPorDia[i] = [];
+  // Fallback: se faltarem em uma categoria, completa com qualquer candidato.
+  const fallback = () => candidatos.slice().sort((a, b) => b.peso - a.peso);
 
-  let placed = 0;
-  let idx = 0;
-  const pool = [...candidatos];
+  // Número de dias de estudo na semana
+  const dias = Math.max(1, Math.min(7, Math.round(user.horasSemana / HORAS_POR_DIA)));
 
-  while (placed < totalSlots && pool.length > 0) {
-    let bestDay = -1;
-    for (let d = 0; d < 7; d++) {
-      const dayIdx = (idx + d) % 7;
-      if (slotsPorDia[dayIdx].length >= MAX_SLOTS_DIA) continue;
-      const last = slotsPorDia[dayIdx].at(-1);
-      // tenta evitar repetir a disciplina seguido
-      if (last && pool[0] && last.subjectId === pool[0].subjectId) continue;
-      bestDay = dayIdx;
-      break;
-    }
-    if (bestDay === -1) {
-      // fallback: aceita o primeiro slot livre
-      for (let d = 0; d < 7; d++) {
-        if (slotsPorDia[d].length < MAX_SLOTS_DIA) {
-          bestDay = d;
-          break;
-        }
-      }
-    }
-    if (bestDay === -1) break;
-    const cand = pool.shift()!;
-    slotsPorDia[bestDay].push(cand);
-    placed++;
-    idx = (bestDay + 1) % 7;
-  }
-
-  // 4) Converter em tarefas
   const tasks: Task[] = [];
-  for (let d = 0; d < 7; d++) {
-    const data = addDays(today, d);
-    data.setHours(9, 0, 0, 0);
-    for (const c of slotsPorDia[d]) {
-      tasks.push({
-        id: uid(),
-        subjectId: c.subjectId,
-        tipo: "estudo",
-        titulo: `Estudar: ${c.microthemeNome}`,
-        descricao: c.themeNome,
-        prazo: data.toISOString(),
-        prioridade: c.peso >= 5 ? "alta" : c.peso >= 3 ? "media" : "baixa",
-        status: "pendente",
-        estimativaHoras: SLOT_HORAS,
-        createdAt: new Date().toISOString(),
-        origem: "ciclo",
-        microthemeRef: { subjectId: c.subjectId, microthemeId: c.microthemeId },
-      });
+  const today = startOfToday();
+
+  // Pools de trabalho (cópias mutáveis)
+  const pNovos = [...novos];
+  const pAtivos = [...ativos];
+  const pEspacadas = [...espacadas];
+
+  let lastSubject: string | undefined;
+
+  for (let i = 0; i < dias; i++) {
+    const dayDate = addDays(today, i);
+    let ordem = 1;
+
+    const b1 = takeNext(pNovos, lastSubject) ?? takeNext(pAtivos, lastSubject) ?? takeNext(fallback());
+    if (b1) {
+      tasks.push(makeTask(b1, dayDate, "novo", DUR_NOVO, ordem++));
+      lastSubject = b1.subjectId;
+    }
+
+    const b2 = takeNext(pAtivos, lastSubject) ?? takeNext(pNovos, lastSubject) ?? takeNext(fallback());
+    if (b2) {
+      tasks.push(makeTask(b2, dayDate, "revisao_ativa", DUR_REVISAO_ATIVA, ordem++));
+      lastSubject = b2.subjectId;
+    }
+
+    const b3 = takeNext(pEspacadas, lastSubject) ?? takeNext(pAtivos, lastSubject) ?? takeNext(fallback());
+    if (b3) {
+      tasks.push(makeTask(b3, dayDate, "revisao_espacada", DUR_REVISAO_ESPACADA, ordem++));
+      lastSubject = b3.subjectId;
     }
   }
+
   return tasks;
 }
 
@@ -162,15 +203,17 @@ export function generateRevisions(
       origem: "revisao",
       microthemeRef: ref,
       intervaloRevisao: offset,
+      bloco: "revisao_espacada",
+      duracaoMinutos: DUR_REVISAO_ESPACADA,
     };
   };
   return [make(1), make(7), make(30)];
 }
 
-/** Retorna o próximo status na "escada" de domínio. */
 export function advanceStatus(current: MicroThemeStatus): MicroThemeStatus {
   if (current === "nao_iniciado") return "superficial";
   if (current === "superficial") return "revisar";
   if (current === "revisar") return "dominado";
   return "dominado";
 }
+

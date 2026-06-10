@@ -2,7 +2,6 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
 import { AppShell } from "@/components/AppShell";
 import { SectionHeader } from "@/components/SectionHeader";
-import { AddTaskDialog } from "@/components/AddTaskDialog";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -17,18 +16,9 @@ import {
   daysUntil,
   formatDate,
 } from "@/lib/store";
-import type { Task } from "@/lib/types";
-import {
-  BookOpen,
-  FileText,
-  Presentation,
-  Sparkles,
-  Target,
-  Clock,
-  AlertCircle,
-  RefreshCcw,
-  Repeat,
-} from "lucide-react";
+import type { Task, BlocoTipo } from "@/lib/types";
+import { Sparkles, Clock, RefreshCcw, Repeat, BookOpenCheck, Layers } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -36,20 +26,39 @@ export const Route = createFileRoute("/")({
       { title: "Minha Semana — Organiza Direito" },
       {
         name: "description",
-        content: "Veja o que você precisa fazer esta semana para não se enrolar.",
+        content: "Seu ciclo de estudos jurídicos da semana, montado automaticamente.",
       },
     ],
   }),
   component: HomePage,
 });
 
-const TYPE_ICON = {
-  leitura: BookOpen,
-  trabalho: FileText,
-  seminario: Presentation,
-  estudo: Target,
-  outro: Sparkles,
-} as const;
+const BLOCO_META: Record<
+  BlocoTipo,
+  { label: string; icon: typeof Layers; dot: string; chip: string; ring: string }
+> = {
+  novo: {
+    label: "Tema novo",
+    icon: Layers,
+    dot: "bg-violet-500",
+    chip: "bg-violet-100 text-violet-700",
+    ring: "border-l-violet-500",
+  },
+  revisao_ativa: {
+    label: "Revisão ativa",
+    icon: BookOpenCheck,
+    dot: "bg-emerald-500",
+    chip: "bg-emerald-100 text-emerald-700",
+    ring: "border-l-emerald-500",
+  },
+  revisao_espacada: {
+    label: "Revisão espaçada",
+    icon: Repeat,
+    dot: "bg-blue-500",
+    chip: "bg-blue-100 text-blue-700",
+    ring: "border-l-blue-500",
+  },
+};
 
 function HomePage() {
   const { state, hydrated, toggleTaskDone, regeneratePlan } = useStore();
@@ -79,24 +88,6 @@ function HomePage() {
     [state.tasks, weekStart, weekEnd],
   );
 
-  const todayTasks = weekTasks.filter((t) => t.prazo && isSameDay(new Date(t.prazo), today));
-  const futureWeekTasks = weekTasks.filter(
-    (t) => t.prazo && new Date(t.prazo) > today && !isSameDay(new Date(t.prazo), today),
-  );
-
-  const overdue = state.tasks.filter(
-    (t) => t.prazo && new Date(t.prazo) < today && t.status !== "feito",
-  );
-
-  const revisoesPendentes = state.tasks.filter(
-    (t) =>
-      t.origem === "revisao" &&
-      t.status !== "feito" &&
-      t.prazo &&
-      new Date(t.prazo) >= today &&
-      new Date(t.prazo) <= addDays(today, 14),
-  );
-
   const upcomingAssessments = state.assessments
     .filter((a) => {
       const d = new Date(a.data);
@@ -107,13 +98,17 @@ function HomePage() {
   const doneWeek = weekTasks.filter((t) => t.status === "feito").length;
   const progress = weekTasks.length === 0 ? 0 : Math.round((doneWeek / weekTasks.length) * 100);
 
-  const byDay: { date: Date; tasks: Task[] }[] = Array.from({ length: 7 }, (_, i) => {
-    const d = addDays(weekStart, i);
-    return {
-      date: d,
-      tasks: futureWeekTasks.filter((t) => t.prazo && isSameDay(new Date(t.prazo), d)),
-    };
-  });
+  const byDay = useMemo(
+    () =>
+      Array.from({ length: 7 }, (_, i) => {
+        const d = addDays(weekStart, i);
+        const tasks = weekTasks
+          .filter((t) => t.prazo && isSameDay(new Date(t.prazo), d))
+          .sort((a, b) => (a.ordemNoDia ?? 99) - (b.ordemNoDia ?? 99));
+        return { date: d, tasks };
+      }),
+    [weekStart, weekTasks],
+  );
 
   const greeting = (() => {
     const h = new Date().getHours();
@@ -126,22 +121,18 @@ function HomePage() {
 
   const semDisciplinas = state.subjects.length === 0;
   const semPlano =
-    !semDisciplinas &&
-    state.subjects.every((s) => !s.subjectOnboardingCompleto);
+    !semDisciplinas && state.subjects.every((s) => !s.subjectOnboardingCompleto);
 
   return (
     <AppShell>
       <SectionHeader
         title={`${greeting}!`}
-        subtitle="O que você precisa fazer esta semana para não se enrolar."
+        subtitle="O ciclo da sua semana — já organizado para você."
         action={
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={regeneratePlan} title="Recriar plano da semana">
-              <RefreshCcw className="mr-1 h-4 w-4" />
-              Regerar plano
-            </Button>
-            <AddTaskDialog />
-          </div>
+          <Button variant="outline" onClick={regeneratePlan} title="Recriar ciclo da semana">
+            <RefreshCcw className="mr-1 h-4 w-4" />
+            Regerar ciclo
+          </Button>
         }
       />
 
@@ -150,9 +141,9 @@ function HomePage() {
           <div className="flex items-start gap-3">
             <Sparkles className="mt-0.5 h-5 w-5 text-primary" />
             <div className="flex-1">
-              <div className="text-sm font-semibold">Falta fazer o diagnóstico das suas disciplinas</div>
+              <div className="text-sm font-semibold">Falta o diagnóstico das suas disciplinas</div>
               <p className="mt-1 text-sm text-muted-foreground">
-                Assim o Organiza Direito monta automaticamente o seu plano de estudos. Leva menos de 2 minutos por disciplina.
+                O ciclo de estudos será gerado automaticamente depois do diagnóstico (menos de 2 min por disciplina).
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {state.subjects.map((s) => (
@@ -175,9 +166,9 @@ function HomePage() {
       <Card className="mb-6 p-5">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <div className="text-sm text-muted-foreground">Progresso da semana</div>
+            <div className="text-sm text-muted-foreground">Progresso do ciclo desta semana</div>
             <div className="mt-1 text-2xl font-semibold">
-              {doneWeek} de {weekTasks.length} tarefas
+              {doneWeek} de {weekTasks.length} blocos concluídos
             </div>
           </div>
           <div className="text-right">
@@ -185,90 +176,33 @@ function HomePage() {
           </div>
         </div>
         <Progress value={progress} className="mt-4 h-2" />
+        <div className="mt-4 flex flex-wrap gap-3 text-xs">
+          {(Object.keys(BLOCO_META) as BlocoTipo[]).map((b) => (
+            <span key={b} className="inline-flex items-center gap-1.5">
+              <span className={cn("h-2 w-2 rounded-full", BLOCO_META[b].dot)} />
+              {BLOCO_META[b].label}
+            </span>
+          ))}
+        </div>
       </Card>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
-          {overdue.length > 0 && (
-            <section>
-              <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-destructive">
-                <AlertCircle className="h-4 w-4" />
-                Atrasadas ({overdue.length})
-              </h2>
-              <Card className="divide-y divide-border p-0">
-                {overdue.map((t) => (
-                  <TaskRow key={t.id} task={t} subjects={state.subjects} onToggle={toggleTaskDone} highlight />
-                ))}
-              </Card>
-            </section>
-          )}
+        <div className="lg:col-span-2 space-y-4">
+          {byDay.map(({ date, tasks }) => (
+            <DayCard
+              key={date.toISOString()}
+              date={date}
+              tasks={tasks}
+              isToday={isSameDay(date, today)}
+              subjects={state.subjects}
+              onToggle={toggleTaskDone}
+            />
+          ))}
 
-          <section>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Hoje
-            </h2>
-            {todayTasks.length === 0 ? (
-              <Card className="p-6 text-center text-sm text-muted-foreground">
-                {semDisciplinas
-                  ? "Adicione disciplinas para receber um plano."
-                  : semPlano
-                    ? "Faça o diagnóstico das disciplinas acima."
-                    : "Nada para hoje — aproveite para revisar o que veio antes."}
-              </Card>
-            ) : (
-              <Card className="divide-y divide-border p-0">
-                {todayTasks.map((t) => (
-                  <TaskRow key={t.id} task={t} subjects={state.subjects} onToggle={toggleTaskDone} />
-                ))}
-              </Card>
-            )}
-          </section>
-
-          <section>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Próximos dias
-            </h2>
-            {futureWeekTasks.length === 0 ? (
-              <Card className="p-6 text-center text-sm text-muted-foreground">
-                Nada planejado para o restante da semana.
-              </Card>
-            ) : (
-              <div className="space-y-3">
-                {byDay.map(({ date, tasks }) =>
-                  tasks.length === 0 ? null : (
-                    <div key={date.toISOString()}>
-                      <div className="mb-1.5 flex items-baseline gap-2 px-1">
-                        <span className="text-sm font-medium capitalize">
-                          {date.toLocaleDateString("pt-BR", { weekday: "long" })}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
-                        </span>
-                      </div>
-                      <Card className="divide-y divide-border p-0">
-                        {tasks.map((t) => (
-                          <TaskRow key={t.id} task={t} subjects={state.subjects} onToggle={toggleTaskDone} />
-                        ))}
-                      </Card>
-                    </div>
-                  ),
-                )}
-              </div>
-            )}
-          </section>
-
-          {revisoesPendentes.length > 0 && (
-            <section>
-              <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                <Repeat className="h-4 w-4" />
-                Revisões pendentes
-              </h2>
-              <Card className="divide-y divide-border p-0">
-                {revisoesPendentes.map((t) => (
-                  <TaskRow key={t.id} task={t} subjects={state.subjects} onToggle={toggleTaskDone} />
-                ))}
-              </Card>
-            </section>
+          {weekTasks.length === 0 && !semDisciplinas && !semPlano && (
+            <Card className="p-6 text-center text-sm text-muted-foreground">
+              Nenhum bloco programado. Clique em "Regerar ciclo".
+            </Card>
           )}
         </div>
 
@@ -343,57 +277,116 @@ function HomePage() {
   );
 }
 
-function TaskRow({
-  task,
+function DayCard({
+  date,
+  tasks,
+  isToday,
   subjects,
   onToggle,
-  highlight,
 }: {
-  task: Task;
+  date: Date;
+  tasks: Task[];
+  isToday: boolean;
   subjects: { id: string; nome: string; cor: string }[];
   onToggle: (id: string) => void;
-  highlight?: boolean;
+}) {
+  const weekday = date.toLocaleDateString("pt-BR", { weekday: "long" });
+  const dayLabel = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+  return (
+    <Card className={cn("overflow-hidden p-0", isToday && "ring-2 ring-primary/40")}>
+      <div className="flex items-baseline justify-between border-b border-border bg-muted/30 px-5 py-3">
+        <div className="flex items-baseline gap-2">
+          <h3 className="text-sm font-semibold capitalize">{weekday}</h3>
+          <span className="text-xs text-muted-foreground">{dayLabel}</span>
+          {isToday && (
+            <Badge className="ml-1 bg-primary/15 text-primary hover:bg-primary/15">hoje</Badge>
+          )}
+        </div>
+        <span className="text-xs text-muted-foreground">
+          {tasks.length === 0 ? "Descanso" : `${tasks.length} bloco${tasks.length > 1 ? "s" : ""}`}
+        </span>
+      </div>
+      {tasks.length === 0 ? (
+        <div className="px-5 py-6 text-center text-xs text-muted-foreground">
+          Dia livre — bom para recarregar.
+        </div>
+      ) : (
+        <div className="divide-y divide-border">
+          {tasks.map((t, i) => (
+            <BlocoRow
+              key={t.id}
+              task={t}
+              index={i + 1}
+              subjects={subjects}
+              onToggle={onToggle}
+            />
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function BlocoRow({
+  task,
+  index,
+  subjects,
+  onToggle,
+}: {
+  task: Task;
+  index: number;
+  subjects: { id: string; nome: string; cor: string }[];
+  onToggle: (id: string) => void;
 }) {
   const subj = subjects.find((s) => s.id === task.subjectId);
-  const Icon = TYPE_ICON[task.tipo];
+  const meta = task.bloco ? BLOCO_META[task.bloco] : null;
+  const Icon = meta?.icon ?? Layers;
   const done = task.status === "feito";
-  const isRevisao = task.origem === "revisao";
-  const isCiclo = task.origem === "ciclo";
+
   return (
-    <div className={`flex items-center gap-3 px-4 py-3 ${highlight ? "bg-destructive/5" : ""}`}>
-      <Checkbox checked={done} onCheckedChange={() => onToggle(task.id)} />
-      <div
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
-        style={{
-          backgroundColor: (subj?.cor ?? "#2563eb") + "1a",
-          color: subj?.cor ?? "#2563eb",
-        }}
-      >
-        {isRevisao ? <Repeat className="h-3.5 w-3.5" /> : <Icon className="h-3.5 w-3.5" />}
+    <div
+      className={cn(
+        "flex items-start gap-3 border-l-4 px-4 py-3",
+        meta?.ring ?? "border-l-transparent",
+      )}
+    >
+      <Checkbox className="mt-0.5" checked={done} onCheckedChange={() => onToggle(task.id)} />
+      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted">
+        <Icon className="h-3.5 w-3.5 text-foreground" />
       </div>
       <div className="min-w-0 flex-1">
-        <div className={`truncate text-sm font-medium ${done ? "text-muted-foreground line-through" : ""}`}>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            Bloco {index}
+          </span>
+          {meta && (
+            <Badge variant="secondary" className={cn("text-[10px]", meta.chip)}>
+              {meta.label}
+            </Badge>
+          )}
+          {task.duracaoMinutos && (
+            <span className="text-[10px] text-muted-foreground">{task.duracaoMinutos} min</span>
+          )}
+        </div>
+        <div
+          className={cn(
+            "mt-0.5 text-sm font-medium",
+            done && "text-muted-foreground line-through",
+          )}
+        >
           {task.titulo}
         </div>
-        <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
-          {subj && <span className="truncate">{subj.nome}</span>}
-          {task.estimativaHoras && <span>· ~{task.estimativaHoras}h</span>}
-          {task.prazo && <span>· {formatDate(task.prazo)}</span>}
+        <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+          {subj && (
+            <span className="inline-flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: subj.cor }} />
+              {subj.nome}
+            </span>
+          )}
+          {task.moduloNome && <span>· {task.moduloNome}</span>}
+          {task.temaNome && <span className="truncate">→ {task.temaNome}</span>}
         </div>
       </div>
-      {isRevisao && (
-        <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100">
-          revisão
-        </Badge>
-      )}
-      {isCiclo && (
-        <Badge variant="secondary" className="bg-primary-soft text-accent-foreground">
-          ciclo
-        </Badge>
-      )}
-      {task.prioridade === "alta" && !done && !isRevisao && !isCiclo && (
-        <Badge className="bg-destructive/10 text-destructive hover:bg-destructive/15">alta</Badge>
-      )}
     </div>
   );
 }

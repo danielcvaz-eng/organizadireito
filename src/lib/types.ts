@@ -3,6 +3,7 @@ export type Goal = "faculdade" | "oab" | "faculdade_oab" | "concurso";
 export type TaskType = "leitura" | "trabalho" | "seminario" | "estudo" | "outro";
 export type TaskStatus = "pendente" | "fazendo" | "feito";
 export type Priority = "baixa" | "media" | "alta";
+export type BlocoTipo = "novo" | "revisao_ativa" | "revisao_espacada";
 export type TaskOrigem = "ciclo" | "revisao" | "manual" | "avaliacao";
 
 export type AssessmentType = "prova" | "trabalho" | "seminario";
@@ -69,6 +70,11 @@ export interface Task {
   origem?: TaskOrigem;
   microthemeRef?: MicroThemeRef;
   intervaloRevisao?: 1 | 7 | 30;
+  bloco?: BlocoTipo;
+  duracaoMinutos?: number;
+  ordemNoDia?: number;
+  moduloNome?: string;
+  temaNome?: string;
 }
 
 export interface Assessment {
