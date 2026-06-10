@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { AppState, Assessment, Subject, Task, Topic, UserProfile } from "./types";
 
 const STORAGE_KEY = "organiza-direito:v1";
@@ -9,6 +9,7 @@ const EMPTY_STATE: AppState = {
   topics: [],
   tasks: [],
   assessments: [],
+  completedMicrothemes: [],
 };
 
 function loadState(): AppState {
