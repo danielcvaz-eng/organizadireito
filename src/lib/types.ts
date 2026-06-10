@@ -70,6 +70,11 @@ export interface Task {
   origem?: TaskOrigem;
   microthemeRef?: MicroThemeRef;
   intervaloRevisao?: 1 | 7 | 30;
+  bloco?: BlocoTipo;
+  duracaoMinutos?: number;
+  ordemNoDia?: number;
+  moduloNome?: string;
+  temaNome?: string;
 }
 
 export interface Assessment {
