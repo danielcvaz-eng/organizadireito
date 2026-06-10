@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Sparkles, Check, ArrowRight, ArrowLeft } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { SUBJECT_CATALOG } from "@/data/subjectCatalog";
+import { getInitialThemes } from "@/data/legalCurriculum";
 import type { Goal } from "@/lib/types";
 
 export const Route = createFileRoute("/onboarding")({
@@ -61,18 +62,42 @@ function OnboardingPage() {
       objetivo,
       onboardingCompleto: true,
     });
-    // Create subjects
+    // Cria disciplinas
     const created = selecionadas.map((catId) => {
       const cat = SUBJECT_CATALOG.find((c) => c.id === catId)!;
       return addSubject({ nome: cat.nome, cor: cat.cor, catalogId: cat.id });
     });
-    // Seed one suggestion task per disciplina
+
+    // Auto-popula a semana com sugestões dos primeiros temas do currículo
+    const today = new Date();
+    today.setHours(9, 0, 0, 0);
+    let dayOffset = 1; // começa amanhã
+
     created.forEach((s) => {
-      addTask({
-        titulo: `Definir prioridades de ${s.nome}`,
-        tipo: "estudo",
-        subjectId: s.id,
-        prioridade: "media",
+      const cat = SUBJECT_CATALOG.find((c) => c.id === s.catalogId);
+      const themes = getInitialThemes(cat?.id ?? "", 2);
+      if (themes.length === 0) {
+        addTask({
+          titulo: `Definir prioridades de ${s.nome}`,
+          tipo: "estudo",
+          subjectId: s.id,
+          prioridade: "media",
+        });
+        return;
+      }
+      themes.forEach((theme, idx) => {
+        const prazo = new Date(today);
+        prazo.setDate(prazo.getDate() + dayOffset);
+        dayOffset = (dayOffset % 6) + 1; // distribui ao longo da semana
+        addTask({
+          titulo: `Estudar: ${theme.nome}`,
+          descricao: `Microtemas: ${theme.microthemes.slice(0, 3).map((m) => m.nome).join(" · ")}`,
+          tipo: idx === 0 ? "estudo" : "leitura",
+          subjectId: s.id,
+          prazo: prazo.toISOString(),
+          prioridade: idx === 0 ? "alta" : "media",
+          estimativaHoras: 2,
+        });
       });
     });
     navigate({ to: "/" });
