@@ -6,11 +6,30 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Trash2, BookOpen, FileText, Presentation, Target, ChevronRight } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  ArrowLeft,
+  Trash2,
+  BookOpen,
+  FileText,
+  Presentation,
+  Target,
+  ChevronRight,
+  Sparkles,
+  RefreshCcw,
+} from "lucide-react";
 import { useStore, formatDate, daysUntil } from "@/lib/store";
 import { AddTaskDialog } from "@/components/AddTaskDialog";
 import { AddAssessmentDialog } from "@/components/AddAssessmentDialog";
+import { SubjectMicrothemeOnboarding } from "@/components/SubjectMicrothemeOnboarding";
 import { getCurriculum, countMicrothemes } from "@/data/legalCurriculum";
+import type { MicroThemeStatus } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/disciplinas/$id")({
   component: DisciplinaDetail,
@@ -24,15 +43,38 @@ const TYPE_ICON = {
   outro: Target,
 } as const;
 
+const STATUS_META: Record<MicroThemeStatus, { label: string; dot: string; pill: string }> = {
+  nao_iniciado: { label: "Não iniciado", dot: "bg-red-500", pill: "bg-red-100 text-red-700" },
+  superficial: { label: "Superficial", dot: "bg-amber-500", pill: "bg-amber-100 text-amber-700" },
+  revisar: { label: "Revisar", dot: "bg-blue-500", pill: "bg-blue-100 text-blue-700" },
+  dominado: { label: "Dominado", dot: "bg-emerald-500", pill: "bg-emerald-100 text-emerald-700" },
+};
+
 function DisciplinaDetail() {
   const { id } = Route.useParams();
-  const { state, hydrated, toggleMicrotheme, toggleTaskDone, removeTask, removeAssessment, removeSubject } = useStore();
+  const {
+    state,
+    hydrated,
+    setMicrothemeStatus,
+    toggleTaskDone,
+    removeTask,
+    removeAssessment,
+    removeSubject,
+    updateSubject,
+  } = useStore();
   const navigate = useNavigate();
   const subject = state.subjects.find((s) => s.id === id);
 
   useEffect(() => {
     if (hydrated && !subject) navigate({ to: "/disciplinas" });
   }, [hydrated, subject, navigate]);
+
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  useEffect(() => {
+    if (hydrated && subject && !subject.subjectOnboardingCompleto) {
+      setOnboardingOpen(true);
+    }
+  }, [hydrated, subject]);
 
   if (!subject) return null;
 
@@ -44,15 +86,30 @@ function DisciplinaDetail() {
     .sort((a, b) => a.data.localeCompare(b.data));
 
   const totalMicro = countMicrothemes(subject.catalogId);
-  const doneMicro = useMemo(
+  const dominado = useMemo(
     () =>
-      (state.completedMicrothemes ?? []).filter((k) => k.startsWith(`${id}:`)).length,
-    [state.completedMicrothemes, id],
+      state.microthemeProgress.filter(
+        (p) => p.subjectId === id && p.status === "dominado",
+      ).length,
+    [state.microthemeProgress, id],
   );
-  const progressoCurriculo = totalMicro === 0 ? 0 : Math.round((doneMicro / totalMicro) * 100);
+  const progressoCurriculo = totalMicro === 0 ? 0 : Math.round((dominado / totalMicro) * 100);
+
+  function statusOf(microId: string): MicroThemeStatus {
+    return (
+      state.microthemeProgress.find((p) => p.subjectId === id && p.microthemeId === microId)
+        ?.status ?? "nao_iniciado"
+    );
+  }
 
   return (
     <AppShell>
+      <SubjectMicrothemeOnboarding
+        open={onboardingOpen}
+        onOpenChange={setOnboardingOpen}
+        subjectId={id}
+      />
+
       <div className="mb-4">
         <Link to="/disciplinas" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4" /> Disciplinas
@@ -71,7 +128,13 @@ function DisciplinaDetail() {
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {curriculum && (
+            <Button variant="outline" onClick={() => setOnboardingOpen(true)}>
+              <Sparkles className="mr-1 h-4 w-4" />
+              {subject.subjectOnboardingCompleto ? "Refazer diagnóstico" : "Diagnóstico"}
+            </Button>
+          )}
           <AddTaskDialog defaultSubjectId={id} />
           <AddAssessmentDialog defaultSubjectId={id} />
         </div>
@@ -80,13 +143,33 @@ function DisciplinaDetail() {
       {curriculum && (
         <Card className="mb-6 p-5">
           <div className="flex items-baseline justify-between">
-            <div className="text-sm text-muted-foreground">Progresso no currículo</div>
+            <div className="text-sm text-muted-foreground">Domínio do currículo</div>
             <div className="text-sm font-medium">
-              {doneMicro}/{totalMicro} microtemas · {progressoCurriculo}%
+              {dominado}/{totalMicro} microtemas dominados · {progressoCurriculo}%
             </div>
           </div>
           <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
-            <div className="h-full rounded-full transition-all" style={{ width: `${progressoCurriculo}%`, backgroundColor: subject.cor }} />
+            <div
+              className="h-full rounded-full transition-all"
+              style={{ width: `${progressoCurriculo}%`, backgroundColor: subject.cor }}
+            />
+          </div>
+          <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+            <span className="font-medium">Dificuldade:</span>
+            {(["facil", "media", "dificil"] as const).map((d) => (
+              <button
+                key={d}
+                onClick={() => updateSubject(id, { dificuldade: d })}
+                className={cn(
+                  "rounded-full border px-2.5 py-1 capitalize transition-colors",
+                  subject.dificuldade === d
+                    ? "border-primary bg-primary-soft text-accent-foreground"
+                    : "border-border hover:bg-muted",
+                )}
+              >
+                {d === "facil" ? "Fácil" : d === "media" ? "Média" : "Difícil"}
+              </button>
+            ))}
           </div>
         </Card>
       )}
@@ -102,20 +185,21 @@ function DisciplinaDetail() {
         {curriculum && (
           <TabsContent value="curriculo" className="mt-4 space-y-4">
             {curriculum.modules.map((mod) => {
-              const microIds = mod.themes.flatMap((t) => t.microthemes.map((m) => `${id}:${m.id}`));
-              const doneModule = microIds.filter((k) => state.completedMicrothemes?.includes(k)).length;
+              const microIds = mod.themes.flatMap((t) => t.microthemes.map((m) => m.id));
+              const doneModule = microIds.filter(
+                (mid) => statusOf(mid) === "dominado",
+              ).length;
               const modProgress = microIds.length === 0 ? 0 : Math.round((doneModule / microIds.length) * 100);
               return (
                 <ModuleCard
                   key={mod.id}
-                  subjectId={id}
                   subjectColor={subject.cor}
                   mod={mod}
                   doneModule={doneModule}
                   total={microIds.length}
                   progress={modProgress}
-                  completed={state.completedMicrothemes ?? []}
-                  onToggle={toggleMicrotheme}
+                  statusOf={statusOf}
+                  onStatusChange={(microId, st) => setMicrothemeStatus(id, microId, st)}
                 />
               );
             })}
@@ -139,7 +223,7 @@ function DisciplinaDetail() {
                         {t.titulo}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {t.tipo} · {formatDate(t.prazo)}
+                        {t.origem === "ciclo" ? "Ciclo" : t.origem === "revisao" ? `Revisão D+${t.intervaloRevisao}` : t.tipo} · {formatDate(t.prazo)}
                       </div>
                     </div>
                     <Button variant="ghost" size="icon" onClick={() => removeTask(t.id)}>
@@ -234,23 +318,21 @@ function DisciplinaDetail() {
 }
 
 function ModuleCard({
-  subjectId,
   subjectColor,
   mod,
   doneModule,
   total,
   progress,
-  completed,
-  onToggle,
+  statusOf,
+  onStatusChange,
 }: {
-  subjectId: string;
   subjectColor: string;
   mod: { id: string; nome: string; themes: { id: string; nome: string; microthemes: { id: string; nome: string }[] }[] };
   doneModule: number;
   total: number;
   progress: number;
-  completed: string[];
-  onToggle: (subjectId: string, microId: string) => void;
+  statusOf: (id: string) => MicroThemeStatus;
+  onStatusChange: (id: string, st: MicroThemeStatus) => void;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -263,7 +345,7 @@ function ModuleCard({
         <div className="min-w-0 flex-1">
           <div className="text-sm font-semibold">{mod.nome}</div>
           <div className="mt-0.5 text-xs text-muted-foreground">
-            {mod.themes.length} temas · {doneModule}/{total} microtemas
+            {mod.themes.length} temas · {doneModule}/{total} dominados
           </div>
         </div>
         <div className="hidden w-32 sm:block">
@@ -285,14 +367,32 @@ function ModuleCard({
               </div>
               <ul className="space-y-1.5">
                 {theme.microthemes.map((m) => {
-                  const key = `${subjectId}:${m.id}`;
-                  const done = completed.includes(key);
+                  const st = statusOf(m.id);
+                  const meta = STATUS_META[st];
                   return (
                     <li key={m.id} className="flex items-center gap-3">
-                      <Checkbox checked={done} onCheckedChange={() => onToggle(subjectId, m.id)} />
-                      <span className={`text-sm ${done ? "text-muted-foreground line-through" : ""}`}>
-                        {m.nome}
-                      </span>
+                      <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", meta.dot)} />
+                      <span className="flex-1 text-sm">{m.nome}</span>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            className={cn(
+                              "rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors hover:opacity-80",
+                              meta.pill,
+                            )}
+                          >
+                            {meta.label}
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {(Object.keys(STATUS_META) as MicroThemeStatus[]).map((s) => (
+                            <DropdownMenuItem key={s} onClick={() => onStatusChange(m.id, s)}>
+                              <span className={cn("mr-2 h-2 w-2 rounded-full", STATUS_META[s].dot)} />
+                              {STATUS_META[s].label}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </li>
                   );
                 })}
@@ -312,3 +412,6 @@ function EmptyState({ text }: { text: string }) {
     </Card>
   );
 }
+
+// silence unused import warning if any
+void RefreshCcw;
