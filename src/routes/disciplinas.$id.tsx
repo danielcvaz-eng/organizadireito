@@ -1,16 +1,16 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Plus, Trash2, BookOpen, FileText, Presentation, Target } from "lucide-react";
+import { ArrowLeft, Trash2, BookOpen, FileText, Presentation, Target, ChevronRight } from "lucide-react";
 import { useStore, formatDate, daysUntil } from "@/lib/store";
 import { AddTaskDialog } from "@/components/AddTaskDialog";
 import { AddAssessmentDialog } from "@/components/AddAssessmentDialog";
+import { getCurriculum, countMicrothemes } from "@/data/legalCurriculum";
 
 export const Route = createFileRoute("/disciplinas/$id")({
   component: DisciplinaDetail,
@@ -26,10 +26,9 @@ const TYPE_ICON = {
 
 function DisciplinaDetail() {
   const { id } = Route.useParams();
-  const { state, hydrated, addTopic, toggleTopic, removeTopic, toggleTaskDone, removeTask, removeAssessment, removeSubject } = useStore();
+  const { state, hydrated, toggleMicrotheme, toggleTaskDone, removeTask, removeAssessment, removeSubject } = useStore();
   const navigate = useNavigate();
   const subject = state.subjects.find((s) => s.id === id);
-  const [novoTopico, setNovoTopico] = useState("");
 
   useEffect(() => {
     if (hydrated && !subject) navigate({ to: "/disciplinas" });
@@ -37,15 +36,20 @@ function DisciplinaDetail() {
 
   if (!subject) return null;
 
-  const topicos = state.topics.filter((t) => t.subjectId === id).sort((a, b) => a.ordem - b.ordem);
+  const curriculum = getCurriculum(subject.catalogId);
   const tarefas = state.tasks.filter((t) => t.subjectId === id);
   const leituras = tarefas.filter((t) => t.tipo === "leitura");
   const avaliacoes = state.assessments
     .filter((a) => a.subjectId === id)
     .sort((a, b) => a.data.localeCompare(b.data));
 
-  const doneTopics = topicos.filter((t) => t.concluido).length;
-  const progressoTopicos = topicos.length === 0 ? 0 : Math.round((doneTopics / topicos.length) * 100);
+  const totalMicro = countMicrothemes(subject.catalogId);
+  const doneMicro = useMemo(
+    () =>
+      (state.completedMicrothemes ?? []).filter((k) => k.startsWith(`${id}:`)).length,
+    [state.completedMicrothemes, id],
+  );
+  const progressoCurriculo = totalMicro === 0 ? 0 : Math.round((doneMicro / totalMicro) * 100);
 
   return (
     <AppShell>
@@ -61,7 +65,9 @@ function DisciplinaDetail() {
           <div>
             <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">{subject.nome}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              {tarefas.length} tarefa(s) · {topicos.length} tópico(s) · {avaliacoes.length} avaliação(ões)
+              {curriculum
+                ? `${curriculum.modules.length} módulos · ${totalMicro} microtemas`
+                : `${tarefas.length} tarefa(s) · ${avaliacoes.length} avaliação(ões)`}
             </p>
           </div>
         </div>
@@ -71,23 +77,50 @@ function DisciplinaDetail() {
         </div>
       </div>
 
-      <Card className="mb-6 p-5">
-        <div className="flex items-baseline justify-between">
-          <div className="text-sm text-muted-foreground">Progresso dos tópicos</div>
-          <div className="text-sm font-medium">{progressoTopicos}%</div>
-        </div>
-        <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
-          <div className="h-full rounded-full" style={{ width: `${progressoTopicos}%`, backgroundColor: subject.cor }} />
-        </div>
-      </Card>
+      {curriculum && (
+        <Card className="mb-6 p-5">
+          <div className="flex items-baseline justify-between">
+            <div className="text-sm text-muted-foreground">Progresso no currículo</div>
+            <div className="text-sm font-medium">
+              {doneMicro}/{totalMicro} microtemas · {progressoCurriculo}%
+            </div>
+          </div>
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+            <div className="h-full rounded-full transition-all" style={{ width: `${progressoCurriculo}%`, backgroundColor: subject.cor }} />
+          </div>
+        </Card>
+      )}
 
-      <Tabs defaultValue="tarefas" className="w-full">
+      <Tabs defaultValue={curriculum ? "curriculo" : "tarefas"} className="w-full">
         <TabsList>
+          {curriculum && <TabsTrigger value="curriculo">Currículo</TabsTrigger>}
           <TabsTrigger value="tarefas">Tarefas</TabsTrigger>
-          <TabsTrigger value="topicos">Tópicos</TabsTrigger>
           <TabsTrigger value="leituras">Leituras</TabsTrigger>
           <TabsTrigger value="avaliacoes">Avaliações</TabsTrigger>
         </TabsList>
+
+        {curriculum && (
+          <TabsContent value="curriculo" className="mt-4 space-y-4">
+            {curriculum.modules.map((mod) => {
+              const microIds = mod.themes.flatMap((t) => t.microthemes.map((m) => `${id}:${m.id}`));
+              const doneModule = microIds.filter((k) => state.completedMicrothemes?.includes(k)).length;
+              const modProgress = microIds.length === 0 ? 0 : Math.round((doneModule / microIds.length) * 100);
+              return (
+                <ModuleCard
+                  key={mod.id}
+                  subjectId={id}
+                  subjectColor={subject.cor}
+                  mod={mod}
+                  doneModule={doneModule}
+                  total={microIds.length}
+                  progress={modProgress}
+                  completed={state.completedMicrothemes ?? []}
+                  onToggle={toggleMicrotheme}
+                />
+              );
+            })}
+          </TabsContent>
+        )}
 
         <TabsContent value="tarefas" className="mt-4">
           {tarefas.length === 0 ? (
@@ -115,46 +148,6 @@ function DisciplinaDetail() {
                   </div>
                 );
               })}
-            </Card>
-          )}
-        </TabsContent>
-
-        <TabsContent value="topicos" className="mt-4">
-          <Card className="p-4">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!novoTopico.trim()) return;
-                addTopic({ subjectId: id, titulo: novoTopico.trim() });
-                setNovoTopico("");
-              }}
-              className="flex gap-2"
-            >
-              <Input
-                value={novoTopico}
-                onChange={(e) => setNovoTopico(e.target.value)}
-                placeholder="Novo tópico (ex: Controle de constitucionalidade)"
-              />
-              <Button type="submit">
-                <Plus className="h-4 w-4" />
-              </Button>
-            </form>
-          </Card>
-          {topicos.length === 0 ? (
-            <div className="mt-4"><EmptyState text="Liste aqui o que precisa ser estudado nesta disciplina." /></div>
-          ) : (
-            <Card className="mt-4 divide-y divide-border p-0">
-              {topicos.map((t) => (
-                <div key={t.id} className="flex items-center gap-3 px-4 py-3">
-                  <Checkbox checked={t.concluido} onCheckedChange={() => toggleTopic(t.id)} />
-                  <span className={`flex-1 text-sm ${t.concluido ? "text-muted-foreground line-through" : ""}`}>
-                    {t.titulo}
-                  </span>
-                  <Button variant="ghost" size="icon" onClick={() => removeTopic(t.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
             </Card>
           )}
         </TabsContent>
@@ -227,7 +220,7 @@ function DisciplinaDetail() {
           variant="ghost"
           className="text-destructive hover:bg-destructive/10 hover:text-destructive"
           onClick={() => {
-            if (confirm(`Remover ${subject.nome}? Todas as tarefas, tópicos e avaliações dessa disciplina serão apagados.`)) {
+            if (confirm(`Remover ${subject.nome}? Todas as tarefas e avaliações serão apagadas.`)) {
               removeSubject(subject.id);
               navigate({ to: "/disciplinas" });
             }
@@ -237,6 +230,78 @@ function DisciplinaDetail() {
         </Button>
       </div>
     </AppShell>
+  );
+}
+
+function ModuleCard({
+  subjectId,
+  subjectColor,
+  mod,
+  doneModule,
+  total,
+  progress,
+  completed,
+  onToggle,
+}: {
+  subjectId: string;
+  subjectColor: string;
+  mod: { id: string; nome: string; themes: { id: string; nome: string; microthemes: { id: string; nome: string }[] }[] };
+  doneModule: number;
+  total: number;
+  progress: number;
+  completed: string[];
+  onToggle: (subjectId: string, microId: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Card className="overflow-hidden p-0">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-muted/40"
+      >
+        <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-90" : ""}`} />
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold">{mod.nome}</div>
+          <div className="mt-0.5 text-xs text-muted-foreground">
+            {mod.themes.length} temas · {doneModule}/{total} microtemas
+          </div>
+        </div>
+        <div className="hidden w-32 sm:block">
+          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+            <div className="h-full rounded-full" style={{ width: `${progress}%`, backgroundColor: subjectColor }} />
+          </div>
+        </div>
+        <Badge variant="secondary" className="bg-muted text-foreground">
+          {progress}%
+        </Badge>
+      </button>
+
+      {open && (
+        <div className="divide-y divide-border border-t border-border">
+          {mod.themes.map((theme) => (
+            <div key={theme.id} className="px-5 py-3">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {theme.nome}
+              </div>
+              <ul className="space-y-1.5">
+                {theme.microthemes.map((m) => {
+                  const key = `${subjectId}:${m.id}`;
+                  const done = completed.includes(key);
+                  return (
+                    <li key={m.id} className="flex items-center gap-3">
+                      <Checkbox checked={done} onCheckedChange={() => onToggle(subjectId, m.id)} />
+                      <span className={`text-sm ${done ? "text-muted-foreground line-through" : ""}`}>
+                        {m.nome}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
   );
 }
 

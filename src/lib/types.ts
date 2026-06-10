@@ -59,4 +59,6 @@ export interface AppState {
   topics: Topic[];
   tasks: Task[];
   assessments: Assessment[];
+  /** Microtemas concluídos. Chave: `${subjectId}:${microthemeId}` */
+  completedMicrothemes: string[];
 }
