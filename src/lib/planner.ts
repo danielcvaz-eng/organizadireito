@@ -217,5 +217,3 @@ export function advanceStatus(current: MicroThemeStatus): MicroThemeStatus {
   return "dominado";
 }
 
-// silence unused
-void findMicrotheme;
