@@ -1,5 +1,22 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import type { AppState, Assessment, Subject, Task, Topic, UserProfile } from "./types";
+import type {
+  AppState,
+  Assessment,
+  MicroThemeStatus,
+  Subject,
+  Task,
+  Topic,
+  UserProfile,
+} from "./types";
+import { findMicrotheme } from "@/data/legalCurriculum";
+import {
+  generateWeeklyCycle,
+  generateRevisions,
+  advanceStatus,
+} from "./planner";
+import { uid } from "./store-internal";
+
+export { uid };
 
 const STORAGE_KEY = "organiza-direito:v1";
 
@@ -10,6 +27,7 @@ const EMPTY_STATE: AppState = {
   tasks: [],
   assessments: [],
   completedMicrothemes: [],
+  microthemeProgress: [],
 };
 
 function loadState(): AppState {
@@ -17,7 +35,13 @@ function loadState(): AppState {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return EMPTY_STATE;
-    return { ...EMPTY_STATE, ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw);
+    return {
+      ...EMPTY_STATE,
+      ...parsed,
+      microthemeProgress: parsed.microthemeProgress ?? [],
+      completedMicrothemes: parsed.completedMicrothemes ?? [],
+    };
   } catch {
     return EMPTY_STATE;
   }
@@ -26,10 +50,6 @@ function loadState(): AppState {
 function saveState(state: AppState) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-}
-
-export function uid() {
-  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 }
 
 interface StoreApi {
@@ -54,9 +74,15 @@ interface StoreApi {
   addAssessment: (a: Omit<Assessment, "id">) => void;
   updateAssessment: (id: string, patch: Partial<Assessment>) => void;
   removeAssessment: (id: string) => void;
-  // microthemes (currículo jurídico)
-  toggleMicrotheme: (subjectId: string, microthemeId: string) => void;
-  isMicrothemeDone: (subjectId: string, microthemeId: string) => boolean;
+  // microtemas / planner
+  setMicrothemeStatus: (subjectId: string, microthemeId: string, status: MicroThemeStatus) => void;
+  getMicrothemeStatus: (subjectId: string, microthemeId: string) => MicroThemeStatus;
+  bulkSetMicrothemeStatuses: (
+    subjectId: string,
+    entries: { microthemeId: string; status: MicroThemeStatus }[],
+  ) => void;
+  completeSubjectOnboarding: (subjectId: string) => void;
+  regeneratePlan: () => void;
 }
 
 const StoreContext = createContext<StoreApi | null>(null);
@@ -76,6 +102,47 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const api = useMemo<StoreApi>(() => {
     const mutate = (fn: (s: AppState) => AppState) => setState((s) => fn(s));
+
+    function regenerate(s: AppState): AppState {
+      const now = startOfToday();
+      const kept = s.tasks.filter((t) => {
+        if (t.origem !== "ciclo") return true;
+        if (t.status === "feito") return true;
+        if (!t.prazo) return true;
+        return new Date(t.prazo) < now; // mantém passados
+      });
+      const next = generateWeeklyCycle(s);
+      return { ...s, tasks: [...kept, ...next] };
+    }
+
+    function upsertProgress(
+      s: AppState,
+      subjectId: string,
+      microthemeId: string,
+      status: MicroThemeStatus,
+    ): AppState {
+      const subject = s.subjects.find((x) => x.id === subjectId);
+      const flat = findMicrotheme(subject?.catalogId, microthemeId);
+      if (!flat) return s;
+      const existing = s.microthemeProgress.find(
+        (p) => p.subjectId === subjectId && p.microthemeId === microthemeId,
+      );
+      const updated = {
+        subjectId,
+        microthemeId,
+        themeId: flat.themeId,
+        moduleId: flat.moduleId,
+        status,
+        ultimaRevisao: existing?.ultimaRevisao,
+      };
+      const list = existing
+        ? s.microthemeProgress.map((p) =>
+            p === existing ? updated : p,
+          )
+        : [...s.microthemeProgress, updated];
+      return { ...s, microthemeProgress: list };
+    }
+
     return {
       state,
       hydrated,
@@ -85,7 +152,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setState(EMPTY_STATE);
       },
       addSubject: (s) => {
-        const subject: Subject = { ...s, id: uid() };
+        const subject: Subject = {
+          ...s,
+          id: uid(),
+          subjectOnboardingCompleto: s.subjectOnboardingCompleto ?? false,
+          dificuldade: s.dificuldade ?? "media",
+        };
         mutate((st) => ({ ...st, subjects: [...st.subjects, subject] }));
         return subject;
       },
@@ -96,6 +168,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           topics: s.topics.filter((x) => x.subjectId !== id),
           tasks: s.tasks.filter((x) => x.subjectId !== id),
           assessments: s.assessments.filter((x) => x.subjectId !== id),
+          microthemeProgress: s.microthemeProgress.filter((x) => x.subjectId !== id),
         })),
       updateSubject: (id, patch) =>
         mutate((s) => ({ ...s, subjects: s.subjects.map((x) => (x.id === id ? { ...x, ...patch } : x)) })),
@@ -118,34 +191,102 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           ...s,
           tasks: [
             ...s.tasks,
-            { ...t, id: uid(), createdAt: new Date().toISOString(), status: t.status ?? "pendente" },
+            {
+              ...t,
+              id: uid(),
+              createdAt: new Date().toISOString(),
+              status: t.status ?? "pendente",
+              origem: t.origem ?? "manual",
+            },
           ],
         })),
       updateTask: (id, patch) =>
         mutate((s) => ({ ...s, tasks: s.tasks.map((x) => (x.id === id ? { ...x, ...patch } : x)) })),
       toggleTaskDone: (id) =>
-        mutate((s) => ({
-          ...s,
-          tasks: s.tasks.map((x) =>
-            x.id === id ? { ...x, status: x.status === "feito" ? "pendente" : "feito" } : x,
-          ),
-        })),
+        mutate((s) => {
+          const task = s.tasks.find((x) => x.id === id);
+          if (!task) return s;
+          const novoStatus = task.status === "feito" ? "pendente" : "feito";
+          const tasksUpdated = s.tasks.map((x) =>
+            x.id === id ? { ...x, status: novoStatus as Task["status"] } : x,
+          );
+          let next: AppState = { ...s, tasks: tasksUpdated };
+
+          // Gera revisões automáticas ao concluir uma task de ciclo
+          if (
+            novoStatus === "feito" &&
+            task.origem === "ciclo" &&
+            task.microthemeRef
+          ) {
+            const subject = s.subjects.find((sb) => sb.id === task.microthemeRef!.subjectId);
+            const flat = findMicrotheme(subject?.catalogId, task.microthemeRef.microthemeId);
+            if (subject && flat) {
+              // evita duplicar se já houve revisões geradas para este microtema recentemente
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              const jaTem = next.tasks.some(
+                (t) =>
+                  t.origem === "revisao" &&
+                  t.microthemeRef?.microthemeId === task.microthemeRef!.microthemeId &&
+                  t.microthemeRef?.subjectId === task.microthemeRef!.subjectId &&
+                  t.prazo &&
+                  new Date(t.prazo) >= today,
+              );
+              if (!jaTem) {
+                const revs = generateRevisions(
+                  task.microthemeRef,
+                  new Date().toISOString(),
+                  subject.nome,
+                  flat.microthemeNome,
+                );
+                next = { ...next, tasks: [...next.tasks, ...revs] };
+              }
+              // avança status
+              const cur =
+                next.microthemeProgress.find(
+                  (p) =>
+                    p.subjectId === subject.id &&
+                    p.microthemeId === task.microthemeRef!.microthemeId,
+                )?.status ?? "nao_iniciado";
+              next = upsertProgress(next, subject.id, task.microthemeRef.microthemeId, advanceStatus(cur));
+            }
+          }
+          return next;
+        }),
       removeTask: (id) => mutate((s) => ({ ...s, tasks: s.tasks.filter((x) => x.id !== id) })),
-      addAssessment: (a) => mutate((s) => ({ ...s, assessments: [...s.assessments, { ...a, id: uid() }] })),
+      addAssessment: (a) =>
+        mutate((s) => {
+          const next = { ...s, assessments: [...s.assessments, { ...a, id: uid() }] };
+          return regenerate(next); // avaliação nova → pode mudar prioridades
+        }),
       updateAssessment: (id, patch) =>
         mutate((s) => ({ ...s, assessments: s.assessments.map((x) => (x.id === id ? { ...x, ...patch } : x)) })),
       removeAssessment: (id) => mutate((s) => ({ ...s, assessments: s.assessments.filter((x) => x.id !== id) })),
-      toggleMicrotheme: (subjectId, microthemeId) =>
+      setMicrothemeStatus: (subjectId, microthemeId, status) =>
+        mutate((s) => regenerate(upsertProgress(s, subjectId, microthemeId, status))),
+      getMicrothemeStatus: (subjectId, microthemeId) => {
+        return (
+          state.microthemeProgress.find(
+            (p) => p.subjectId === subjectId && p.microthemeId === microthemeId,
+          )?.status ?? "nao_iniciado"
+        );
+      },
+      bulkSetMicrothemeStatuses: (subjectId, entries) =>
         mutate((s) => {
-          const key = `${subjectId}:${microthemeId}`;
-          const set = s.completedMicrothemes ?? [];
-          return {
-            ...s,
-            completedMicrothemes: set.includes(key) ? set.filter((k) => k !== key) : [...set, key],
-          };
+          let next = s;
+          for (const e of entries) {
+            next = upsertProgress(next, subjectId, e.microthemeId, e.status);
+          }
+          return next;
         }),
-      isMicrothemeDone: (subjectId, microthemeId) =>
-        (state.completedMicrothemes ?? []).includes(`${subjectId}:${microthemeId}`),
+      completeSubjectOnboarding: (subjectId) =>
+        mutate((s) => {
+          const subjects = s.subjects.map((x) =>
+            x.id === subjectId ? { ...x, subjectOnboardingCompleto: true } : x,
+          );
+          return regenerate({ ...s, subjects });
+        }),
+      regeneratePlan: () => mutate((s) => regenerate(s)),
     };
   }, [state, hydrated]);
 
@@ -159,6 +300,12 @@ export function useStore() {
 }
 
 // ---------- Date helpers ----------
+
+export function startOfToday(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
 
 export function startOfWeek(d: Date = new Date()): Date {
   const date = new Date(d);
