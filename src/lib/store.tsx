@@ -54,6 +54,9 @@ interface StoreApi {
   addAssessment: (a: Omit<Assessment, "id">) => void;
   updateAssessment: (id: string, patch: Partial<Assessment>) => void;
   removeAssessment: (id: string) => void;
+  // microthemes (currículo jurídico)
+  toggleMicrotheme: (subjectId: string, microthemeId: string) => void;
+  isMicrothemeDone: (subjectId: string, microthemeId: string) => boolean;
 }
 
 const StoreContext = createContext<StoreApi | null>(null);
