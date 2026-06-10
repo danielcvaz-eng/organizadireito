@@ -89,37 +89,33 @@ function makeTask(
   bloco: BlocoTipo,
   duracao: number,
   ordemNoDia: number,
-  origem: "ciclo" | "revisao" = "ciclo",
-  intervaloRevisao?: 1 | 7 | 30,
 ): Task {
   const data = new Date(dayDate);
   data.setHours(9, 0, 0, 0);
-  const blocoLabel =
-    bloco === "novo" ? "Tema novo" : bloco === "revisao_ativa" ? "Revisão ativa" : "Revisão espaçada";
+  const titulo =
+    bloco === "novo"
+      ? c.microthemeNome
+      : bloco === "revisao_ativa"
+        ? `Revisão ativa: ${c.microthemeNome}`
+        : `Revisão espaçada: ${c.microthemeNome}`;
   return {
     id: uid(),
     subjectId: c.subjectId,
     tipo: "estudo",
-    titulo: c.microthemeNome,
+    titulo,
     descricao: `${c.subjectNome} · ${c.moduleNome} → ${c.themeNome}`,
     prazo: data.toISOString(),
     prioridade: c.peso >= 5 ? "alta" : c.peso >= 3 ? "media" : "baixa",
     status: "pendente",
     estimativaHoras: duracao / 60,
     createdAt: new Date().toISOString(),
-    origem,
+    origem: "ciclo",
     microthemeRef: { subjectId: c.subjectId, microthemeId: c.microthemeId },
     bloco,
     duracaoMinutos: duracao,
     ordemNoDia,
     moduloNome: c.moduleNome,
     temaNome: c.themeNome,
-    intervaloRevisao,
-    ...(origem === "revisao" ? { titulo: `Revisão: ${c.microthemeNome}`, prioridade: "media" as const } : {}),
-    // titulo seguinte sobrescreve quando origem===revisao acima — mantemos visualização clara
-    ...(bloco === "novo" ? { titulo: c.microthemeNome } : {}),
-    ...(bloco === "revisao_ativa" ? { titulo: `Revisão ativa: ${c.microthemeNome}` } : {}),
-    ...(bloco === "revisao_espacada" ? { titulo: `Revisão espaçada: ${c.microthemeNome}` } : {}),
   };
 }
 
