@@ -62,46 +62,26 @@ function OnboardingPage() {
       objetivo,
       onboardingCompleto: true,
     });
-    // Cria disciplinas
+    // Cria disciplinas — pendentes de diagnóstico individual
     const created = selecionadas.map((catId) => {
       const cat = SUBJECT_CATALOG.find((c) => c.id === catId)!;
-      return addSubject({ nome: cat.nome, cor: cat.cor, catalogId: cat.id });
-    });
-
-    // Auto-popula a semana com sugestões dos primeiros temas do currículo
-    const today = new Date();
-    today.setHours(9, 0, 0, 0);
-    let dayOffset = 1; // começa amanhã
-
-    created.forEach((s) => {
-      const cat = SUBJECT_CATALOG.find((c) => c.id === s.catalogId);
-      const themes = getInitialThemes(cat?.id ?? "", 2);
-      if (themes.length === 0) {
-        addTask({
-          titulo: `Definir prioridades de ${s.nome}`,
-          tipo: "estudo",
-          subjectId: s.id,
-          prioridade: "media",
-        });
-        return;
-      }
-      themes.forEach((theme, idx) => {
-        const prazo = new Date(today);
-        prazo.setDate(prazo.getDate() + dayOffset);
-        dayOffset = (dayOffset % 6) + 1; // distribui ao longo da semana
-        addTask({
-          titulo: `Estudar: ${theme.nome}`,
-          descricao: `Microtemas: ${theme.microthemes.slice(0, 3).map((m) => m.nome).join(" · ")}`,
-          tipo: idx === 0 ? "estudo" : "leitura",
-          subjectId: s.id,
-          prazo: prazo.toISOString(),
-          prioridade: idx === 0 ? "alta" : "media",
-          estimativaHoras: 2,
-        });
+      return addSubject({
+        nome: cat.nome,
+        cor: cat.cor,
+        catalogId: cat.id,
+        subjectOnboardingCompleto: false,
+        dificuldade: "media",
       });
     });
-    navigate({ to: "/" });
+    // Redireciona para a primeira disciplina para fazer o diagnóstico
+    const first = created[0];
+    if (first) {
+      navigate({ to: "/disciplinas/$id", params: { id: first.id } });
+    } else {
+      navigate({ to: "/" });
+    }
   }
+
 
   return (
     <div className="min-h-screen bg-background">
