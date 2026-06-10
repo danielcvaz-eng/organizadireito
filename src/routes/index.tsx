@@ -6,11 +6,29 @@ import { AddTaskDialog } from "@/components/AddTaskDialog";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { useStore, startOfWeek, endOfWeek, addDays, isSameDay, daysUntil, formatDate } from "@/lib/store";
+import {
+  useStore,
+  startOfWeek,
+  endOfWeek,
+  addDays,
+  isSameDay,
+  daysUntil,
+  formatDate,
+} from "@/lib/store";
 import type { Task } from "@/lib/types";
-import { getInitialThemes } from "@/data/legalCurriculum";
-import { BookOpen, FileText, Presentation, Sparkles, Target, Clock, AlertCircle, Layers } from "lucide-react";
+import {
+  BookOpen,
+  FileText,
+  Presentation,
+  Sparkles,
+  Target,
+  Clock,
+  AlertCircle,
+  RefreshCcw,
+  Repeat,
+} from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -34,7 +52,7 @@ const TYPE_ICON = {
 } as const;
 
 function HomePage() {
-  const { state, hydrated, toggleTaskDone } = useStore();
+  const { state, hydrated, toggleTaskDone, regeneratePlan } = useStore();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -45,6 +63,11 @@ function HomePage() {
 
   const weekStart = startOfWeek();
   const weekEnd = endOfWeek();
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
 
   const weekTasks = useMemo(
     () =>
@@ -56,14 +79,28 @@ function HomePage() {
     [state.tasks, weekStart, weekEnd],
   );
 
-  const overdue = state.tasks.filter(
-    (t) => t.prazo && new Date(t.prazo) < weekStart && t.status !== "feito",
+  const todayTasks = weekTasks.filter((t) => t.prazo && isSameDay(new Date(t.prazo), today));
+  const futureWeekTasks = weekTasks.filter(
+    (t) => t.prazo && new Date(t.prazo) > today && !isSameDay(new Date(t.prazo), today),
   );
-  const noPrazo = state.tasks.filter((t) => !t.prazo && t.status !== "feito");
+
+  const overdue = state.tasks.filter(
+    (t) => t.prazo && new Date(t.prazo) < today && t.status !== "feito",
+  );
+
+  const revisoesPendentes = state.tasks.filter(
+    (t) =>
+      t.origem === "revisao" &&
+      t.status !== "feito" &&
+      t.prazo &&
+      new Date(t.prazo) >= today &&
+      new Date(t.prazo) <= addDays(today, 14),
+  );
+
   const upcomingAssessments = state.assessments
     .filter((a) => {
       const d = new Date(a.data);
-      return d >= new Date(new Date().setHours(0, 0, 0, 0)) && d <= addDays(new Date(), 21);
+      return d >= today && d <= addDays(today, 21);
     })
     .sort((a, b) => a.data.localeCompare(b.data));
 
@@ -72,7 +109,10 @@ function HomePage() {
 
   const byDay: { date: Date; tasks: Task[] }[] = Array.from({ length: 7 }, (_, i) => {
     const d = addDays(weekStart, i);
-    return { date: d, tasks: weekTasks.filter((t) => t.prazo && isSameDay(new Date(t.prazo), d)) };
+    return {
+      date: d,
+      tasks: futureWeekTasks.filter((t) => t.prazo && isSameDay(new Date(t.prazo), d)),
+    };
   });
 
   const greeting = (() => {
@@ -84,15 +124,54 @@ function HomePage() {
 
   if (!hydrated) return null;
 
+  const semDisciplinas = state.subjects.length === 0;
+  const semPlano =
+    !semDisciplinas &&
+    state.subjects.every((s) => !s.subjectOnboardingCompleto);
+
   return (
     <AppShell>
       <SectionHeader
         title={`${greeting}!`}
         subtitle="O que você precisa fazer esta semana para não se enrolar."
-        action={<AddTaskDialog />}
+        action={
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={regeneratePlan} title="Recriar plano da semana">
+              <RefreshCcw className="mr-1 h-4 w-4" />
+              Regerar plano
+            </Button>
+            <AddTaskDialog />
+          </div>
+        }
       />
 
-      {/* Progress card */}
+      {semPlano && (
+        <Card className="mb-6 border-primary/30 bg-primary-soft p-5">
+          <div className="flex items-start gap-3">
+            <Sparkles className="mt-0.5 h-5 w-5 text-primary" />
+            <div className="flex-1">
+              <div className="text-sm font-semibold">Falta fazer o diagnóstico das suas disciplinas</div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Assim o Organiza Direito monta automaticamente o seu plano de estudos. Leva menos de 2 minutos por disciplina.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {state.subjects.map((s) => (
+                  <Link
+                    key={s.id}
+                    to="/disciplinas/$id"
+                    params={{ id: s.id }}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-background px-3 py-1 text-xs font-medium hover:bg-muted"
+                  >
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: s.cor }} />
+                    {s.nome}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
       <Card className="mb-6 p-5">
         <div className="flex items-center justify-between gap-4">
           <div>
@@ -126,17 +205,32 @@ function HomePage() {
 
           <section>
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Esta semana
+              Hoje
             </h2>
-            {weekTasks.length === 0 ? (
-              <Card className="p-8 text-center">
-                <Sparkles className="mx-auto h-8 w-8 text-muted-foreground" />
-                <p className="mt-3 text-sm text-muted-foreground">
-                  Nada agendado para esta semana ainda. Adicione uma tarefa para começar.
-                </p>
-                <div className="mt-4 flex justify-center">
-                  <AddTaskDialog />
-                </div>
+            {todayTasks.length === 0 ? (
+              <Card className="p-6 text-center text-sm text-muted-foreground">
+                {semDisciplinas
+                  ? "Adicione disciplinas para receber um plano."
+                  : semPlano
+                    ? "Faça o diagnóstico das disciplinas acima."
+                    : "Nada para hoje — aproveite para revisar o que veio antes."}
+              </Card>
+            ) : (
+              <Card className="divide-y divide-border p-0">
+                {todayTasks.map((t) => (
+                  <TaskRow key={t.id} task={t} subjects={state.subjects} onToggle={toggleTaskDone} />
+                ))}
+              </Card>
+            )}
+          </section>
+
+          <section>
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Próximos dias
+            </h2>
+            {futureWeekTasks.length === 0 ? (
+              <Card className="p-6 text-center text-sm text-muted-foreground">
+                Nada planejado para o restante da semana.
               </Card>
             ) : (
               <div className="space-y-3">
@@ -150,11 +244,6 @@ function HomePage() {
                         <span className="text-xs text-muted-foreground">
                           {date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
                         </span>
-                        {isSameDay(date, new Date()) && (
-                          <Badge variant="secondary" className="bg-primary-soft text-accent-foreground">
-                            hoje
-                          </Badge>
-                        )}
                       </div>
                       <Card className="divide-y divide-border p-0">
                         {tasks.map((t) => (
@@ -168,56 +257,20 @@ function HomePage() {
             )}
           </section>
 
-          {noPrazo.length > 0 && (
+          {revisoesPendentes.length > 0 && (
             <section>
-              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                Sem prazo
+              <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                <Repeat className="h-4 w-4" />
+                Revisões pendentes
               </h2>
               <Card className="divide-y divide-border p-0">
-                {noPrazo.map((t) => (
+                {revisoesPendentes.map((t) => (
                   <TaskRow key={t.id} task={t} subjects={state.subjects} onToggle={toggleTaskDone} />
                 ))}
               </Card>
             </section>
           )}
-          {/* Sugestões de estudo — primeiros temas do currículo de cada disciplina */}
-          {state.subjects.length > 0 && (
-            <section>
-              <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                <Layers className="h-4 w-4" />
-                Sugestões de estudo
-              </h2>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                {state.subjects.map((s) => {
-                  const themes = getInitialThemes(s.catalogId ?? "", 2);
-                  if (themes.length === 0) return null;
-                  return (
-                    <Card key={s.id} className="p-4">
-                      <Link
-                        to="/disciplinas/$id"
-                        params={{ id: s.id }}
-                        className="flex items-center gap-2 text-sm font-semibold hover:underline"
-                      >
-                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: s.cor }} />
-                        {s.nome}
-                      </Link>
-                      <ul className="mt-2 space-y-1.5">
-                        {themes.map((t) => (
-                          <li key={t.id} className="text-xs text-muted-foreground">
-                            <span className="font-medium text-foreground">{t.nome}</span>
-                            {t.microthemes[0] && <> · {t.microthemes[0].nome}</>}
-                          </li>
-                        ))}
-                      </ul>
-                    </Card>
-                  );
-                })}
-              </div>
-            </section>
-          )}
         </div>
-
-
 
         <aside className="space-y-6">
           <Card className="p-5">
@@ -275,6 +328,11 @@ function HomePage() {
                 >
                   <span className="h-2 w-2 rounded-full" style={{ backgroundColor: s.cor }} />
                   {s.nome}
+                  {!s.subjectOnboardingCompleto && (
+                    <span className="ml-1 rounded-full bg-amber-100 px-1.5 text-[10px] font-medium text-amber-700">
+                      diag
+                    </span>
+                  )}
                 </Link>
               ))}
             </div>
@@ -299,14 +357,19 @@ function TaskRow({
   const subj = subjects.find((s) => s.id === task.subjectId);
   const Icon = TYPE_ICON[task.tipo];
   const done = task.status === "feito";
+  const isRevisao = task.origem === "revisao";
+  const isCiclo = task.origem === "ciclo";
   return (
     <div className={`flex items-center gap-3 px-4 py-3 ${highlight ? "bg-destructive/5" : ""}`}>
       <Checkbox checked={done} onCheckedChange={() => onToggle(task.id)} />
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md" style={{
-        backgroundColor: (subj?.cor ?? "#2563eb") + "1a",
-        color: subj?.cor ?? "#2563eb",
-      }}>
-        <Icon className="h-3.5 w-3.5" />
+      <div
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
+        style={{
+          backgroundColor: (subj?.cor ?? "#2563eb") + "1a",
+          color: subj?.cor ?? "#2563eb",
+        }}
+      >
+        {isRevisao ? <Repeat className="h-3.5 w-3.5" /> : <Icon className="h-3.5 w-3.5" />}
       </div>
       <div className="min-w-0 flex-1">
         <div className={`truncate text-sm font-medium ${done ? "text-muted-foreground line-through" : ""}`}>
@@ -314,10 +377,21 @@ function TaskRow({
         </div>
         <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
           {subj && <span className="truncate">{subj.nome}</span>}
+          {task.estimativaHoras && <span>· ~{task.estimativaHoras}h</span>}
           {task.prazo && <span>· {formatDate(task.prazo)}</span>}
         </div>
       </div>
-      {task.prioridade === "alta" && !done && (
+      {isRevisao && (
+        <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100">
+          revisão
+        </Badge>
+      )}
+      {isCiclo && (
+        <Badge variant="secondary" className="bg-primary-soft text-accent-foreground">
+          ciclo
+        </Badge>
+      )}
+      {task.prioridade === "alta" && !done && !isRevisao && !isCiclo && (
         <Badge className="bg-destructive/10 text-destructive hover:bg-destructive/15">alta</Badge>
       )}
     </div>
