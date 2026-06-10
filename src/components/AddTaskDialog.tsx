@@ -1,13 +1,18 @@
 import { useState } from "react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { useStore } from "@/lib/store";
 import type { Priority, TaskType } from "@/lib/types";
-import { Plus } from "lucide-react";
+import { Plus, CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const TYPES: { value: TaskType; label: string }[] = [
   { value: "leitura", label: "Leitura" },
@@ -19,9 +24,11 @@ const TYPES: { value: TaskType; label: string }[] = [
 
 export function AddTaskDialog({
   defaultSubjectId,
+  defaultDate,
   trigger,
 }: {
   defaultSubjectId?: string;
+  defaultDate?: Date;
   trigger?: React.ReactNode;
 }) {
   const { state, addTask } = useStore();
@@ -30,7 +37,7 @@ export function AddTaskDialog({
   const [descricao, setDescricao] = useState("");
   const [tipo, setTipo] = useState<TaskType>("estudo");
   const [subjectId, setSubjectId] = useState<string>(defaultSubjectId ?? "none");
-  const [prazo, setPrazo] = useState<string>("");
+  const [prazo, setPrazo] = useState<Date | undefined>(defaultDate);
   const [prioridade, setPrioridade] = useState<Priority>("media");
 
   function submit() {
@@ -40,12 +47,13 @@ export function AddTaskDialog({
       descricao: descricao.trim() || undefined,
       tipo,
       subjectId: subjectId === "none" ? undefined : subjectId,
-      prazo: prazo || undefined,
+      prazo: prazo ? new Date(prazo.setHours(9, 0, 0, 0)).toISOString() : undefined,
       prioridade,
+      origem: "manual",
     });
     setTitulo("");
     setDescricao("");
-    setPrazo("");
+    setPrazo(undefined);
     setPrioridade("media");
     setTipo("estudo");
     setOpen(false);
@@ -101,8 +109,30 @@ export function AddTaskDialog({
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="prazo">Prazo</Label>
-              <Input id="prazo" type="date" value={prazo} onChange={(e) => setPrazo(e.target.value)} />
+              <Label>Prazo</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !prazo && "text-muted-foreground",
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {prazo ? format(prazo, "PPP", { locale: ptBR }) : <span>Escolher data</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={prazo}
+                    onSelect={setPrazo}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-1.5">
               <Label>Prioridade</Label>

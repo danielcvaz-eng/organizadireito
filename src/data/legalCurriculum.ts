@@ -761,3 +761,38 @@ export function countMicrothemes(catalogId?: string): number {
   for (const m of cur.modules) for (const t of m.themes) n += t.microthemes.length;
   return n;
 }
+
+export interface FlatMicrotheme {
+  microthemeId: string;
+  microthemeNome: string;
+  themeId: string;
+  themeNome: string;
+  moduleId: string;
+  moduleNome: string;
+}
+
+export function getAllMicrothemes(catalogId?: string): FlatMicrotheme[] {
+  const cur = getCurriculum(catalogId);
+  if (!cur) return [];
+  const out: FlatMicrotheme[] = [];
+  for (const mod of cur.modules) {
+    for (const theme of mod.themes) {
+      for (const micro of theme.microthemes) {
+        out.push({
+          microthemeId: micro.id,
+          microthemeNome: micro.nome,
+          themeId: theme.id,
+          themeNome: theme.nome,
+          moduleId: mod.id,
+          moduleNome: mod.nome,
+        });
+      }
+    }
+  }
+  return out;
+}
+
+export function findMicrotheme(catalogId: string | undefined, microthemeId: string): FlatMicrotheme | undefined {
+  return getAllMicrothemes(catalogId).find((m) => m.microthemeId === microthemeId);
+}
+
