@@ -1,5 +1,5 @@
 import type { AppState, Task, MicroThemeStatus, MicroThemeRef, BlocoTipo } from "./types";
-import { getAllMicrothemes, findMicrotheme } from "@/data/legalCurriculum";
+import { getAllMicrothemes } from "@/data/legalCurriculum";
 import { uid } from "./store-internal";
 
 // Blocos (minutos)
