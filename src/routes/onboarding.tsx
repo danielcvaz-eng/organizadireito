@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Sparkles, Check, ArrowRight, ArrowLeft } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { SUBJECT_CATALOG } from "@/data/subjectCatalog";
-import { getInitialThemes } from "@/data/legalCurriculum";
+
 import type { Goal } from "@/lib/types";
 
 export const Route = createFileRoute("/onboarding")({
