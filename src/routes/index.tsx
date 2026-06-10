@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useStore, startOfWeek, endOfWeek, addDays, isSameDay, daysUntil, formatDate } from "@/lib/store";
 import type { Task } from "@/lib/types";
-import { BookOpen, FileText, Presentation, Sparkles, Target, Clock, AlertCircle } from "lucide-react";
+import { getInitialThemes } from "@/data/legalCurriculum";
+import { BookOpen, FileText, Presentation, Sparkles, Target, Clock, AlertCircle, Layers } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -179,7 +180,44 @@ function HomePage() {
               </Card>
             </section>
           )}
+          {/* Sugestões de estudo — primeiros temas do currículo de cada disciplina */}
+          {state.subjects.length > 0 && (
+            <section>
+              <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                <Layers className="h-4 w-4" />
+                Sugestões de estudo
+              </h2>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                {state.subjects.map((s) => {
+                  const themes = getInitialThemes(s.catalogId ?? "", 2);
+                  if (themes.length === 0) return null;
+                  return (
+                    <Card key={s.id} className="p-4">
+                      <Link
+                        to="/disciplinas/$id"
+                        params={{ id: s.id }}
+                        className="flex items-center gap-2 text-sm font-semibold hover:underline"
+                      >
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: s.cor }} />
+                        {s.nome}
+                      </Link>
+                      <ul className="mt-2 space-y-1.5">
+                        {themes.map((t) => (
+                          <li key={t.id} className="text-xs text-muted-foreground">
+                            <span className="font-medium text-foreground">{t.nome}</span>
+                            {t.microthemes[0] && <> · {t.microthemes[0].nome}</>}
+                          </li>
+                        ))}
+                      </ul>
+                    </Card>
+                  );
+                })}
+              </div>
+            </section>
+          )}
         </div>
+
+
 
         <aside className="space-y-6">
           <Card className="p-5">
