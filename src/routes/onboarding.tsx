@@ -29,7 +29,7 @@ const GOALS: { value: Goal; label: string; desc: string }[] = [
 
 function OnboardingPage() {
   const navigate = useNavigate();
-  const { setUser, addSubject, addTask } = useStore();
+  const { setUser, addSubject } = useStore();
   const [step, setStep] = useState(0);
 
   const [semestre, setSemestre] = useState<number>(3);
