@@ -135,6 +135,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       updateAssessment: (id, patch) =>
         mutate((s) => ({ ...s, assessments: s.assessments.map((x) => (x.id === id ? { ...x, ...patch } : x)) })),
       removeAssessment: (id) => mutate((s) => ({ ...s, assessments: s.assessments.filter((x) => x.id !== id) })),
+      toggleMicrotheme: (subjectId, microthemeId) =>
+        mutate((s) => {
+          const key = `${subjectId}:${microthemeId}`;
+          const set = s.completedMicrothemes ?? [];
+          return {
+            ...s,
+            completedMicrothemes: set.includes(key) ? set.filter((k) => k !== key) : [...set, key],
+          };
+        }),
+      isMicrothemeDone: (subjectId, microthemeId) =>
+        (state.completedMicrothemes ?? []).includes(`${subjectId}:${microthemeId}`),
     };
   }, [state, hydrated]);
 
