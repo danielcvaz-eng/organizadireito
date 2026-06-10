@@ -1,150 +1,123 @@
-# Organiza Direito — Validação antes da implementação
+# Organiza Direito → Planejador Automático
 
-Vou apresentar abaixo a arquitetura, jornada, dados e escopo do MVP. **Nada será codado até você aprovar.**
-
----
-
-## 1. Arquitetura do produto (telas e função)
-
-### Telas do MVP
-
-1. **Onboarding (`/onboarding`)**
-   - Função: capturar contexto mínimo do aluno (semestre, rotina, horas/semana, disciplinas atuais, objetivo) e gerar o ambiente inicial automaticamente.
-   - Saída: cria disciplinas selecionadas, define carga semanal e leva direto para "Minha Semana".
-
-2. **Minha Semana (`/`) — tela principal**
-   - Função: responder diariamente *"o que eu preciso fazer esta semana para não me enrolar?"*.
-   - Mostra prioridades da semana, leituras pendentes, trabalhos pendentes, prazos próximos, disciplinas em risco e barra de progresso semanal.
-   - É o "home" pós-onboarding. Todo o resto orbita aqui.
-
-3. **Disciplinas (`/disciplinas`)**
-   - Lista das disciplinas do semestre com progresso e próximos compromissos.
-   - **Detalhe da disciplina (`/disciplinas/$id`)**: tópicos, tarefas, leituras, avaliações e progresso da matéria.
-
-4. **Calendário Acadêmico (`/calendario`)**
-   - Visão mensal/semanal de provas, trabalhos, seminários, leituras obrigatórias e eventos, com cores por categoria/disciplina.
-
-5. **Dashboard do Semestre (`/semestre`)**
-   - Visão macro: disciplinas, progresso geral, próximas provas, próximos trabalhos e metas. Pouco gráfico, muita clareza.
-
-6. **Ajustes (`/ajustes`)** *(mínimo)*
-   - Editar semestre, horas/semana, objetivo, disciplinas ativas.
-
-### Como elas se conectam
-
-```text
-            ┌──────────────┐
-            │  Onboarding  │  (1ª vez apenas)
-            └──────┬───────┘
-                   ▼
-         ┌───────────────────┐
-         │   Minha Semana    │◄─── home recorrente
-         └───┬───────┬───────┘
-             │       │
-   ┌─────────┘       └──────────┐
-   ▼                            ▼
-┌──────────────┐         ┌──────────────┐
-│ Disciplinas  │◄───────►│  Calendário  │
-│  /detalhe    │         │  Acadêmico   │
-└──────┬───────┘         └──────┬───────┘
-       └────────┬───────────────┘
-                ▼
-        ┌───────────────┐
-        │  Dashboard do │
-        │   Semestre    │
-        └───────────────┘
-```
-
-Tarefas, leituras e avaliações **são criadas dentro da disciplina** e aparecem automaticamente em Minha Semana e no Calendário — uma única fonte de verdade.
+Objetivo: deixar de ser agenda manual. O aluno recebe um plano pronto baseado em microtemas, prioridades e revisões espaçadas.
 
 ---
 
-## 2. Fluxo do usuário
+## 1. Novo modelo de dados (src/lib/types.ts)
 
-**Primeiro acesso**
-1. Abre o app → tela de boas-vindas curta.
-2. Onboarding em 5 passos (semestre → trabalho/estágio → horas/semana → disciplinas → objetivo).
-3. Sistema gera disciplinas, define carga e cria a primeira "semana".
+Adicionar:
 
-**Configuração inicial (sem fricção)**
-- Disciplinas vêm pré-cadastradas do catálogo jurídico; o aluno só marca as que cursa.
-- Nenhum formulário obrigatório além do onboarding.
+- `MicroThemeStatus`: `"nao_iniciado" | "superficial" | "revisar" | "dominado"`
+- `MicroThemeProgress`: `{ subjectId, microthemeId, themeId, moduleId, status, peso, ultimaRevisao?, proximaRevisao? }`
+- `Task.origem`: `"ciclo" | "revisao" | "manual" | "avaliacao"`
+- `Task.microthemeRef?: { subjectId, microthemeId }`
+- `Task.intervaloRevisao?: 1 | 7 | 30` (quando origem = revisao)
+- `Subject.subjectOnboardingCompleto: boolean`
+- `Subject.dificuldade: "facil" | "media" | "dificil"` (default "media")
+- `AppState.microthemeProgress: MicroThemeProgress[]`
 
-**Primeira semana**
-- Home = Minha Semana já populada com sugestões de leitura/estudo baseadas nas disciplinas e horas/semana.
-- Aluno adiciona 1ª prova ou trabalho real → vê aparecer em Minha Semana e no Calendário.
-
-**Uso contínuo (rotina)**
-- Abrir o app → olhar Minha Semana → marcar itens como feitos → adicionar novo prazo quando o professor anunciar → conferir Calendário antes de provas → revisar Dashboard no fim do semestre.
+Store ganha: `setMicrothemeStatus`, `getProgress`, `generateWeeklyCycle`, `generateRevisions(microthemeRef, completedAt)`.
 
 ---
 
-## 3. Estrutura de dados
+## 2. Algoritmo do Ciclo de Estudos (src/lib/planner.ts — novo)
 
-### Entidades
+Função `generateWeeklyCycle(state) → Task[]`:
 
-- **user** — id, nome, email, semestre, trabalha/estagia (bool), horas_semana, objetivo (`faculdade` | `oab` | `faculdade_oab` | `concurso`), onboarding_completo.
-- **subject_catalog** — catálogo fixo de disciplinas jurídicas comuns (semente).
-- **subject** — disciplina ativa do aluno: id, user_id, catalog_id (opcional), nome, cor, semestre.
-- **topic** — tópico dentro de uma disciplina: id, subject_id, titulo, ordem, concluido.
-- **task** — tarefa genérica: id, user_id, subject_id (opcional), tipo (`leitura` | `trabalho` | `seminario` | `estudo` | `outro`), titulo, descricao, prazo, prioridade, status (`pendente` | `fazendo` | `feito`), estimativa_horas.
-- **reading** — leitura obrigatória: id, subject_id, titulo, fonte, paginas, prazo, status. *(pode ser modelada como `task` tipo `leitura`; ver nota técnica)*
-- **assessment** — avaliação: id, subject_id, tipo (`prova` | `trabalho` | `seminario`), titulo, data, peso, nota (opcional).
-- **event** — evento de calendário derivado: id, user_id, subject_id (opcional), titulo, inicio, fim, categoria, origem (`task` | `assessment` | `manual`).
+1. Calcular peso de cada microtema:
+   - status `nao_iniciado` → 4
+   - `superficial` → 2
+   - `revisar` → 1
+   - `dominado` → 0 (só entra em revisão espaçada)
+   - +2 se a disciplina tem avaliação nos próximos 14 dias
+   - +1 se disciplina marcada como "dificil"
+2. Ordenar microtemas por peso desc.
+3. Distribuir nos `horasSemana` (slot = 1h) entre os 7 dias, intercalando disciplinas (round-robin pesado) para evitar repetir a mesma disciplina dois slots seguidos.
+4. Gerar `Task` com `origem: "ciclo"`, `prazo` no dia do slot, `estimativaHoras: 1`, `microthemeRef`.
 
-### Relacionamentos
+Função `generateRevisions(ref, completedAtISO) → Task[]`:
+- Cria três tasks `origem: "revisao"` com prazos D+1, D+7, D+30 e `intervaloRevisao` respectivo.
 
-```text
-user 1───* subject 1───* topic
-                  │
-                  ├──* task        (também pode ser solta sem subject)
-                  ├──* reading
-                  └──* assessment
-
-user 1───* event   (event referencia task/assessment via origem+ref_id)
-subject_catalog 1───* subject (semente; o aluno "ativa" do catálogo)
-```
-
-Regra-chave: **tarefa/leitura/avaliação são a fonte; o calendário e Minha Semana são views derivadas.** Isso elimina duplicação e mantém a UX simples.
+Função `regenerateUpcomingCycle(state)`:
+- Remove tasks futuras com `origem: "ciclo"` ainda `pendente` e regenera com base no estado atual (chamada após mudanças de status, conclusão, nova avaliação).
 
 ---
 
-## 4. MVP
+## 3. Revisões automáticas (store)
 
-### Entra no MVP
-- Onboarding em 5 passos com geração automática do ambiente.
-- Minha Semana (prioridades, leituras, trabalhos, prazos, progresso).
-- Disciplinas a partir de catálogo pré-pronto + página de detalhe (tópicos, tarefas, leituras, avaliações, progresso).
-- Calendário Acadêmico (mensal e semanal, cores por categoria/disciplina).
-- Dashboard do Semestre (visão macro enxuta).
-- Ajustes básicos.
-- Design system alinhado às referências (Notion/Linear/Sunsama/Motion), paleta indicada, tom acolhedor.
-- **Persistência local no navegador** (sem login) para validar UX rápido — ver nota técnica.
-
-### NÃO entra no MVP
-- Login/contas, multiusuário, sincronização entre dispositivos.
-- Banco completo de disciplinas e ementas oficiais.
-- Planejamento inteligente / IA / sugestão automática de cronograma.
-- Integração com OAB, importação de calendário acadêmico, Google Calendar.
-- Notificações push/email, mobile app nativo.
-- Compartilhamento, grupos, colaboração.
-- Gamificação, estatísticas avançadas, relatórios.
+- `toggleTaskDone` em task de ciclo com `microthemeRef`: ao marcar feito, chamar `generateRevisions(ref, hoje)` e mudar status do microtema para `superficial`→`revisar`/`revisar`→`dominado` (uma etapa adiante).
+- `toggleMicrotheme` é substituído por `setMicrothemeStatus(subjectId, microthemeId, status)`.
 
 ---
 
-## Notas técnicas (para você, opcional)
+## 4. Onboarding global atualizado (src/routes/onboarding.tsx)
 
-- Stack já provisionada: TanStack Start + React + Tailwind v4 + shadcn.
-- **Persistência**: proponho começar com `localStorage` (zero fricção, sem backend). Quando validar, ligamos Lovable Cloud para auth + Postgres e migramos. Se preferir já começar com Cloud + login, me avise.
-- `reading` pode virar simplesmente `task` com `tipo='leitura'` para reduzir entidades — recomendo essa simplificação no MVP.
-- Catálogo de disciplinas será um arquivo seed no front (ex.: `src/data/subjectCatalog.ts`).
+- Remover o seed manual de duas tasks por disciplina.
+- Ao final: para cada disciplina criada marcar `subjectOnboardingCompleto: false`. Não pré-popular tarefas.
+- Após `finish()`, navegar para `/disciplinas/$id` da primeira disciplina sem onboarding completo (continuar fluxo).
 
 ---
 
-## Decisões que preciso de você antes de codar
+## 5. Novo onboarding por disciplina (src/components/SubjectMicrothemeOnboarding.tsx)
 
-1. **Persistência inicial**: localStorage agora e Cloud depois, ou já entrar com Lovable Cloud + login desde o MVP?
-2. **`reading` separada ou unificada como `task` tipo leitura?** (recomendo unificar).
-3. **Algo no escopo "NÃO entra" que você quer puxar para o MVP?**
+Disparado quando o usuário entra na disciplina e `subjectOnboardingCompleto === false`.
 
-Se aprovar como está (com as escolhas padrão: localStorage + reading unificada), começo a implementação na sequência: design system → onboarding → Minha Semana → Disciplinas → Calendário → Dashboard.
+- Tela cheia (Dialog grande) com **checklist tabular**: linhas = microtemas (agrupados por módulo/tema, colapsáveis), 4 botões por linha (Nunca / Superficial / Revisar / Seguro), com cores e ícones.
+- Default: "Nunca estudei".
+- Botão "Salvar e gerar meu plano" → grava todos, marca `subjectOnboardingCompleto = true`, chama `regenerateUpcomingCycle`, fecha e navega para `/`.
+- Botão secundário "Marcar tudo como nunca estudei" para acelerar.
+
+---
+
+## 6. Minha Semana (src/routes/index.tsx) — reescrita
+
+Estrutura:
+
+- **Hoje**: tasks com prazo = hoje, agrupadas por slot horário (ou lista), badge de origem (Ciclo / Revisão).
+- **Próximos dias**: lista cronológica até domingo, agrupada por dia.
+- **Revisões pendentes**: seção própria, apenas tasks `origem: "revisao"`.
+- **Avaliações próximas**: assessments nos próximos 14 dias.
+- Header: barra de progresso da semana + botão "Regerar plano da semana".
+- Empty state só aparece se não houver disciplinas (CTA → onboarding).
+
+---
+
+## 7. Tela Disciplina (src/routes/disciplinas.$id.tsx)
+
+- Acima do currículo: barra de progresso por **módulo** (% de microtemas com status `dominado`).
+- Em cada microtema: badge de status colorido (🟢 dominado, 🟡 superficial/revisar, 🔴 nao_iniciado) + menu para mudar status manualmente.
+- Botão "Refazer onboarding desta disciplina".
+- Tabs Tarefas / Leituras / Avaliações mantidas.
+
+---
+
+## 8. Calendário (src/routes/calendario.tsx) + AddTaskDialog
+
+- Corrigir AddTaskDialog: substituir input nativo de data pelo `Calendar` shadcn em Popover, permitindo qualquer data (passada/futura).
+- Calendário mensal exibe tasks de ciclo, revisões e avaliações com cores distintas.
+
+---
+
+## 9. Arquivos afetados
+
+Novos:
+- `src/lib/planner.ts`
+- `src/components/SubjectMicrothemeOnboarding.tsx`
+
+Editados:
+- `src/lib/types.ts`, `src/lib/store.tsx`
+- `src/routes/onboarding.tsx`, `src/routes/index.tsx`, `src/routes/disciplinas.$id.tsx`, `src/routes/calendario.tsx`
+- `src/components/AddTaskDialog.tsx`
+
+Sem login/IA/integrações — tudo localStorage.
+
+---
+
+## Notas técnicas
+
+- Migração leve do localStorage: ao hidratar, se `microthemeProgress` não existir, inicializar `[]`; manter compatibilidade dos campos antigos (`completedMicrothemes` fica obsoleto mas não quebra).
+- Regeneração do ciclo é idempotente: só remove tasks `origem: "ciclo"` com status `pendente` e prazo ≥ hoje.
+- Limites para evitar excesso: máx. `horasSemana` slots/semana, máx. 3 slots por dia.
+
+Pronto para implementar após sua aprovação.
