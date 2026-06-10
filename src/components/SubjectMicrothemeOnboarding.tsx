@@ -120,23 +120,23 @@ export function SubjectMicrothemeOnboarding({
                         <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                           {theme.nome}
                         </div>
-                        <ul className="space-y-2">
+                        <ul className="space-y-3">
                           {theme.microthemes.map((m) => (
-                            <li
-                              key={m.id}
-                              className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
-                            >
-                              <span className="text-sm">{m.nome}</span>
-                              <div className="flex flex-wrap gap-1">
+                            <li key={m.id} className="space-y-1.5">
+                              <span className="block text-sm leading-snug">{m.nome}</span>
+                              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
                                 {OPTIONS.map((o) => {
                                   const active = statuses[m.id] === o.value;
                                   return (
                                     <button
                                       key={o.value}
+                                      type="button"
                                       onClick={() => setMicro(m.id, o.value)}
                                       className={cn(
-                                        "rounded-md border px-2 py-1 text-[11px] font-medium transition-all",
-                                        active ? o.color + " ring-2 ring-offset-1 ring-current/40" : "border-border bg-background text-muted-foreground hover:bg-muted",
+                                        "min-h-9 w-full rounded-md border px-2 text-[12px] font-medium leading-none transition-colors",
+                                        active
+                                          ? o.color + " ring-2 ring-primary/40"
+                                          : "border-border bg-background text-muted-foreground hover:bg-muted",
                                       )}
                                     >
                                       {o.short}
