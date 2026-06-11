@@ -38,11 +38,13 @@ export interface SemesterEntry {
   disciplines: SemesterDiscipline[];
 }
 
-// Paleta de cores reaproveitada por slug.
+// Paleta diversa — tons bem distintos (matiz/saturação variadas)
+// para evitar disciplinas com cores parecidas.
 const PALETTE = [
-  "#2563eb", "#22c55e", "#ef4444", "#f59e0b", "#8b5cf6",
-  "#ec4899", "#14b8a6", "#0ea5e9", "#f97316", "#6366f1",
-  "#16a34a", "#dc2626", "#a855f7", "#0891b2", "#d97706",
+  "#2563eb", "#dc2626", "#16a34a", "#f59e0b", "#7c3aed",
+  "#0891b2", "#db2777", "#65a30d", "#ea580c", "#0d9488",
+  "#9333ea", "#ca8a04", "#0369a1", "#be123c", "#15803d",
+  "#a16207", "#7e22ce", "#0e7490",
 ];
 
 function slug(s: string): string {
@@ -107,7 +109,7 @@ export const SEMESTER_CURRICULUM: SemesterEntry[] = [
   {
     semestre: 4,
     disciplines: [
-      d(4, "Direito Administrativo I", "administrativo"),
+      d(4, "Direito Administrativo I", "administrativo-1"),
       d(4, "Direito Internacional Público", "internacional"),
       d(4, "Jurisdição Constitucional (Constitucional III)", "constitucional"),
       d(4, "Direito dos Contratos (Direito Civil III)"),
@@ -120,7 +122,7 @@ export const SEMESTER_CURRICULUM: SemesterEntry[] = [
     semestre: 5,
     disciplines: [
       d(5, "Crimes em Espécie (Direito Penal III)"),
-      d(5, "Direito Administrativo II", "administrativo"),
+      d(5, "Direito Administrativo II", "administrativo-2"),
       d(5, "Direito do Trabalho I", "trabalho"),
       d(5, "Direito Internacional Privado"),
       d(5, "Execução e Cumprimento de Sentença (Processo Civil IV)"),
@@ -176,7 +178,9 @@ export const SEMESTER_CURRICULUM: SemesterEntry[] = [
 ];
 
 export function getDisciplinesBySemester(semestre: number): SemesterDiscipline[] {
-  return SEMESTER_CURRICULUM.find((e) => e.semestre === semestre)?.disciplines ?? [];
+  const list = SEMESTER_CURRICULUM.find((e) => e.semestre === semestre)?.disciplines ?? [];
+  // Cores distintas entre as disciplinas do mesmo semestre (por posição).
+  return list.map((disc, i) => ({ ...disc, cor: PALETTE[i % PALETTE.length] }));
 }
 
 export function findDiscipline(id: string): SemesterDiscipline | undefined {

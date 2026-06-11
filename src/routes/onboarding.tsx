@@ -12,7 +12,7 @@ import {
   type SemesterDiscipline,
 } from "@/data/semesterCurriculum";
 
-import type { Goal } from "@/lib/types";
+import type { Goal, EstagioHoras } from "@/lib/types";
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({
@@ -44,6 +44,7 @@ function OnboardingPage() {
 
   const [semestre, setSemestre] = useState<number>(3);
   const [trabalhaEstagia, setTrabalhaEstagia] = useState<boolean | null>(null);
+  const [estagioHoras, setEstagioHoras] = useState<EstagioHoras | null>(null);
   const [horasSemana, setHorasSemana] = useState<number>(10);
   const [selecionadas, setSelecionadas] = useState<string[]>([]);
   const [extras, setExtras] = useState<ExtraDiscipline[]>([]);
@@ -77,7 +78,11 @@ function OnboardingPage() {
 
   function canAdvance() {
     if (step === 0) return semestre > 0;
-    if (step === 1) return trabalhaEstagia !== null;
+    if (step === 1) {
+      if (trabalhaEstagia === null) return false;
+      if (trabalhaEstagia === true && estagioHoras === null) return false;
+      return true;
+    }
     if (step === 2) return horasSemana > 0;
     if (step === 3) return selecionadas.length + extras.length > 0;
     if (step === 4) return objetivo !== null;
@@ -89,6 +94,7 @@ function OnboardingPage() {
     setUser({
       semestre,
       trabalhaEstagia: trabalhaEstagia ?? false,
+      estagioHoras: trabalhaEstagia ? estagioHoras ?? undefined : undefined,
       horasSemana,
       objetivo,
       onboardingCompleto: true,
@@ -157,7 +163,7 @@ function OnboardingPage() {
               <div>
                 <h2 className="text-2xl font-semibold tracking-tight">Em qual semestre você está?</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Vamos mostrar as disciplinas oficiais desse semestre.
+                  Vamos mostrar as disciplinas desse semestre como sugestão inicial.
                 </p>
               </div>
               <div className="grid grid-cols-5 gap-2">
@@ -196,7 +202,10 @@ function OnboardingPage() {
                   <button
                     key={String(o.value)}
                     type="button"
-                    onClick={() => setTrabalhaEstagia(o.value)}
+                    onClick={() => {
+                      setTrabalhaEstagia(o.value);
+                      if (!o.value) setEstagioHoras(null);
+                    }}
                     className={`rounded-xl border p-6 text-left transition-colors ${
                       trabalhaEstagia === o.value
                         ? "border-primary bg-primary-soft"
@@ -207,13 +216,45 @@ function OnboardingPage() {
                   </button>
                 ))}
               </div>
+
+              {trabalhaEstagia === true && (
+                <div className="space-y-3 rounded-xl border border-border bg-muted/30 p-4">
+                  <div>
+                    <div className="text-sm font-semibold">Quantas horas por dia?</div>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Vamos calibrar a carga de estudos para a sua rotina real.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { value: "ate4" as const, label: "Até 4 horas" },
+                      { value: "mais4" as const, label: "Mais de 4 horas" },
+                    ].map((o) => (
+                      <button
+                        key={o.value}
+                        type="button"
+                        onClick={() => setEstagioHoras(o.value)}
+                        className={`rounded-lg border p-3 text-left text-sm font-medium transition-colors ${
+                          estagioHoras === o.value
+                            ? "border-primary bg-primary-soft"
+                            : "border-border bg-background hover:bg-muted"
+                        }`}
+                      >
+                        {o.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           {step === 2 && (
             <div className="space-y-5">
               <div>
-                <h2 className="text-2xl font-semibold tracking-tight">Quantas horas por semana?</h2>
+                <h2 className="text-2xl font-semibold tracking-tight">
+                  Quantas horas você consegue estudar por semana?
+                </h2>
                 <p className="mt-1 text-sm text-muted-foreground">Seja realista. Você pode ajustar depois.</p>
               </div>
               <div className="flex items-end gap-3">
@@ -329,7 +370,7 @@ function OnboardingPage() {
           {step === 4 && (
             <div className="space-y-5">
               <div>
-                <h2 className="text-2xl font-semibold tracking-tight">Qual seu objetivo agora?</h2>
+                <h2 className="text-2xl font-semibold tracking-tight">Qual é o seu principal foco neste momento?</h2>
                 <p className="mt-1 text-sm text-muted-foreground">Você pode mudar mais tarde nos Ajustes.</p>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

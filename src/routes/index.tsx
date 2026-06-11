@@ -12,7 +12,6 @@ import {
   startOfWeek,
   endOfWeek,
   addDays,
-  isSameDay,
   daysUntil,
   formatDate,
 } from "@/lib/store";
@@ -35,7 +34,7 @@ export const Route = createFileRoute("/")({
 
 const BLOCO_META: Record<
   BlocoTipo,
-  { label: string; icon: typeof Layers; dot: string; chip: string; ring: string }
+  { label: string; icon: typeof Layers; dot: string; chip: string; ring: string; descricao: string }
 > = {
   novo: {
     label: "Tema novo",
@@ -43,6 +42,7 @@ const BLOCO_META: Record<
     dot: "bg-violet-500",
     chip: "bg-violet-100 text-violet-700",
     ring: "border-l-violet-500",
+    descricao: "Conteúdo inédito para destravar a próxima etapa do currículo.",
   },
   revisao_ativa: {
     label: "Revisão ativa",
@@ -50,6 +50,7 @@ const BLOCO_META: Record<
     dot: "bg-emerald-500",
     chip: "bg-emerald-100 text-emerald-700",
     ring: "border-l-emerald-500",
+    descricao: "Recapitular com lápis e papel o que você já viu.",
   },
   revisao_espacada: {
     label: "Revisão espaçada",
@@ -57,6 +58,7 @@ const BLOCO_META: Record<
     dot: "bg-blue-500",
     chip: "bg-blue-100 text-blue-700",
     ring: "border-l-blue-500",
+    descricao: "Toques rápidos no que já está dominado — para não esquecer.",
   },
 };
 
@@ -72,21 +74,33 @@ function HomePage() {
 
   const weekStart = startOfWeek();
   const weekEnd = endOfWeek();
+
+  const weekCycleTasks = useMemo(
+    () =>
+      state.tasks
+        .filter((t) => t.origem === "ciclo")
+        .filter((t) => {
+          if (!t.prazo) return true;
+          const d = new Date(t.prazo);
+          return d >= weekStart && d <= weekEnd;
+        })
+        .sort((a, b) => (a.ordemNoDia ?? 99) - (b.ordemNoDia ?? 99)),
+    [state.tasks, weekStart, weekEnd],
+  );
+
+  const pendingRevisions = useMemo(
+    () =>
+      state.tasks
+        .filter((t) => t.origem === "revisao" && t.status !== "feito")
+        .sort((a, b) => (a.prazo ?? "").localeCompare(b.prazo ?? "")),
+    [state.tasks],
+  );
+
   const today = useMemo(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
     return d;
   }, []);
-
-  const weekTasks = useMemo(
-    () =>
-      state.tasks.filter((t) => {
-        if (!t.prazo) return false;
-        const d = new Date(t.prazo);
-        return d >= weekStart && d <= weekEnd;
-      }),
-    [state.tasks, weekStart, weekEnd],
-  );
 
   const upcomingAssessments = state.assessments
     .filter((a) => {
@@ -95,20 +109,17 @@ function HomePage() {
     })
     .sort((a, b) => a.data.localeCompare(b.data));
 
-  const doneWeek = weekTasks.filter((t) => t.status === "feito").length;
-  const progress = weekTasks.length === 0 ? 0 : Math.round((doneWeek / weekTasks.length) * 100);
+  const doneWeek = weekCycleTasks.filter((t) => t.status === "feito").length;
+  const progress =
+    weekCycleTasks.length === 0 ? 0 : Math.round((doneWeek / weekCycleTasks.length) * 100);
 
-  const byDay = useMemo(
-    () =>
-      Array.from({ length: 7 }, (_, i) => {
-        const d = addDays(weekStart, i);
-        const tasks = weekTasks
-          .filter((t) => t.prazo && isSameDay(new Date(t.prazo), d))
-          .sort((a, b) => (a.ordemNoDia ?? 99) - (b.ordemNoDia ?? 99));
-        return { date: d, tasks };
-      }),
-    [weekStart, weekTasks],
-  );
+  const grupos: { tipo: BlocoTipo; tasks: Task[] }[] = useMemo(() => {
+    const types: BlocoTipo[] = ["novo", "revisao_ativa", "revisao_espacada"];
+    return types.map((tipo) => ({
+      tipo,
+      tasks: weekCycleTasks.filter((t) => t.bloco === tipo),
+    }));
+  }, [weekCycleTasks]);
 
   const greeting = (() => {
     const h = new Date().getHours();
@@ -123,15 +134,20 @@ function HomePage() {
   const semPlano =
     !semDisciplinas && state.subjects.every((s) => !s.subjectOnboardingCompleto);
 
+  // Mensagem adaptativa (sem cobrar)
+  const pendentes = weekCycleTasks.length - doneWeek;
+  const dayOfWeek = (new Date().getDay() + 6) % 7; // 0=seg
+  const muitoPendente = pendentes > 0 && dayOfWeek >= 4 && progress < 50;
+
   return (
     <AppShell>
       <SectionHeader
         title={`${greeting}!`}
-        subtitle="O ciclo da sua semana — já organizado para você."
+        subtitle="Seu ciclo da semana — sem dias fixos. Cumpra na ordem que conseguir."
         action={
-          <Button variant="outline" onClick={regeneratePlan} title="Recriar ciclo da semana">
+          <Button variant="outline" onClick={regeneratePlan} title="Redistribuir blocos da semana">
             <RefreshCcw className="mr-1 h-4 w-4" />
-            Regerar ciclo
+            Redistribuir
           </Button>
         }
       />
@@ -143,7 +159,7 @@ function HomePage() {
             <div className="flex-1">
               <div className="text-sm font-semibold">Falta o diagnóstico das suas disciplinas</div>
               <p className="mt-1 text-sm text-muted-foreground">
-                O ciclo de estudos será gerado automaticamente depois do diagnóstico (menos de 2 min por disciplina).
+                O ciclo é montado automaticamente depois do diagnóstico (menos de 2 min por disciplina).
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {state.subjects.map((s) => (
@@ -163,12 +179,25 @@ function HomePage() {
         </Card>
       )}
 
+      {muitoPendente && (
+        <Card className="mb-6 border-amber-200 bg-amber-50 p-4">
+          <div className="flex items-start gap-3">
+            <RefreshCcw className="mt-0.5 h-4 w-4 text-amber-700" />
+            <div className="flex-1 text-sm text-amber-900">
+              <span className="font-semibold">Vamos redistribuir sua carga.</span>{" "}
+              A semana não acabou — clique em <em>Redistribuir</em> para reorganizar os blocos
+              restantes de forma realista. Sem cobrança, só consistência.
+            </div>
+          </div>
+        </Card>
+      )}
+
       <Card className="mb-6 p-5">
         <div className="flex items-center justify-between gap-4">
           <div>
             <div className="text-sm text-muted-foreground">Progresso do ciclo desta semana</div>
             <div className="mt-1 text-2xl font-semibold">
-              {doneWeek} de {weekTasks.length} blocos concluídos
+              {doneWeek} de {weekCycleTasks.length} blocos concluídos
             </div>
           </div>
           <div className="text-right">
@@ -187,33 +216,65 @@ function HomePage() {
       </Card>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-4">
-          {byDay.map(({ date, tasks }) => (
-            <DayCard
-              key={date.toISOString()}
-              date={date}
-              tasks={tasks}
-              isToday={isSameDay(date, today)}
-              subjects={state.subjects}
-              onToggle={toggleTaskDone}
-            />
-          ))}
-
-          {weekTasks.length === 0 && !semDisciplinas && !semPlano && (
+        <div className="space-y-4 lg:col-span-2">
+          {weekCycleTasks.length === 0 && !semDisciplinas && !semPlano && (
             <Card className="p-6 text-center text-sm text-muted-foreground">
-              Nenhum bloco programado. Clique em "Regerar ciclo".
+              Nenhum bloco programado. Clique em "Redistribuir".
             </Card>
+          )}
+
+          {grupos.map(({ tipo, tasks }) =>
+            tasks.length === 0 ? null : (
+              <BlockGroup
+                key={tipo}
+                tipo={tipo}
+                tasks={tasks}
+                subjects={state.subjects}
+                onToggle={toggleTaskDone}
+              />
+            ),
           )}
         </div>
 
         <aside className="space-y-6">
+          {pendingRevisions.length > 0 && (
+            <Card className="p-5">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <Repeat className="h-4 w-4 text-blue-500" />
+                Revisões em aberto
+              </div>
+              <ul className="mt-3 space-y-2">
+                {pendingRevisions.slice(0, 5).map((r) => {
+                  const subj = state.subjects.find((s) => s.id === r.subjectId);
+                  return (
+                    <li key={r.id} className="flex items-start gap-2 text-sm">
+                      <Checkbox
+                        className="mt-0.5"
+                        checked={false}
+                        onCheckedChange={() => toggleTaskDone(r.id)}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate">{r.titulo}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {subj?.nome ?? "—"} · {formatDate(r.prazo)}
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </Card>
+          )}
+
           <Card className="p-5">
             <div className="flex items-center gap-2 text-sm font-semibold">
               <Clock className="h-4 w-4 text-primary" />
               Próximas avaliações
             </div>
             {upcomingAssessments.length === 0 ? (
-              <p className="mt-3 text-sm text-muted-foreground">Nenhuma avaliação nas próximas 3 semanas.</p>
+              <p className="mt-3 text-sm text-muted-foreground">
+                Nenhuma avaliação nas próximas 3 semanas.
+              </p>
             ) : (
               <ul className="mt-3 space-y-3">
                 {upcomingAssessments.slice(0, 5).map((a) => {
@@ -277,52 +338,43 @@ function HomePage() {
   );
 }
 
-function DayCard({
-  date,
+function BlockGroup({
+  tipo,
   tasks,
-  isToday,
   subjects,
   onToggle,
 }: {
-  date: Date;
+  tipo: BlocoTipo;
   tasks: Task[];
-  isToday: boolean;
   subjects: { id: string; nome: string; cor: string }[];
   onToggle: (id: string) => void;
 }) {
-  const weekday = date.toLocaleDateString("pt-BR", { weekday: "long" });
-  const dayLabel = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+  const meta = BLOCO_META[tipo];
+  const Icon = meta.icon;
+  const done = tasks.filter((t) => t.status === "feito").length;
+  const totalMin = tasks.reduce((acc, t) => acc + (t.duracaoMinutos ?? 0), 0);
+
   return (
-    <Card className={cn("overflow-hidden p-0", isToday && "ring-2 ring-primary/40")}>
-      <div className="flex items-baseline justify-between border-b border-border bg-muted/30 px-5 py-3">
-        <div className="flex items-baseline gap-2">
-          <h3 className="text-sm font-semibold capitalize">{weekday}</h3>
-          <span className="text-xs text-muted-foreground">{dayLabel}</span>
-          {isToday && (
-            <Badge className="ml-1 bg-primary/15 text-primary hover:bg-primary/15">hoje</Badge>
-          )}
+    <Card className="overflow-hidden p-0">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/30 px-5 py-3">
+        <div className="flex items-center gap-2">
+          <span className={cn("flex h-7 w-7 items-center justify-center rounded-md", meta.chip)}>
+            <Icon className="h-3.5 w-3.5" />
+          </span>
+          <div>
+            <h3 className="text-sm font-semibold">{meta.label}</h3>
+            <p className="text-[11px] text-muted-foreground">{meta.descricao}</p>
+          </div>
         </div>
-        <span className="text-xs text-muted-foreground">
-          {tasks.length === 0 ? "Descanso" : `${tasks.length} bloco${tasks.length > 1 ? "s" : ""}`}
-        </span>
+        <div className="text-xs text-muted-foreground">
+          {done}/{tasks.length} · {totalMin} min
+        </div>
       </div>
-      {tasks.length === 0 ? (
-        <div className="px-5 py-6 text-center text-xs text-muted-foreground">
-          Dia livre — bom para recarregar.
-        </div>
-      ) : (
-        <div className="divide-y divide-border">
-          {tasks.map((t, i) => (
-            <BlocoRow
-              key={t.id}
-              task={t}
-              index={i + 1}
-              subjects={subjects}
-              onToggle={onToggle}
-            />
-          ))}
-        </div>
-      )}
+      <div className="divide-y divide-border">
+        {tasks.map((t, i) => (
+          <BlocoRow key={t.id} task={t} index={i + 1} subjects={subjects} onToggle={onToggle} />
+        ))}
+      </div>
     </Card>
   );
 }
@@ -340,7 +392,6 @@ function BlocoRow({
 }) {
   const subj = subjects.find((s) => s.id === task.subjectId);
   const meta = task.bloco ? BLOCO_META[task.bloco] : null;
-  const Icon = meta?.icon ?? Layers;
   const done = task.status === "feito";
 
   return (
@@ -351,19 +402,11 @@ function BlocoRow({
       )}
     >
       <Checkbox className="mt-0.5" checked={done} onCheckedChange={() => onToggle(task.id)} />
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted">
-        <Icon className="h-3.5 w-3.5 text-foreground" />
-      </div>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
             Bloco {index}
           </span>
-          {meta && (
-            <Badge variant="secondary" className={cn("text-[10px]", meta.chip)}>
-              {meta.label}
-            </Badge>
-          )}
           {task.duracaoMinutos && (
             <span className="text-[10px] text-muted-foreground">{task.duracaoMinutos} min</span>
           )}
@@ -376,7 +419,7 @@ function BlocoRow({
         >
           {task.titulo}
         </div>
-        <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+        <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
           {subj && (
             <span className="inline-flex items-center gap-1">
               <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: subj.cor }} />

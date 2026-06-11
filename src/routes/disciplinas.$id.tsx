@@ -154,22 +154,36 @@ function DisciplinaDetail() {
               style={{ width: `${progressoCurriculo}%`, backgroundColor: subject.cor }}
             />
           </div>
-          <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-            <span className="font-medium">Dificuldade:</span>
-            {(["facil", "media", "dificil"] as const).map((d) => (
-              <button
-                key={d}
-                onClick={() => updateSubject(id, { dificuldade: d })}
-                className={cn(
-                  "rounded-full border px-2.5 py-1 capitalize transition-colors",
-                  subject.dificuldade === d
-                    ? "border-primary bg-primary-soft text-accent-foreground"
-                    : "border-border hover:bg-muted",
-                )}
-              >
-                {d === "facil" ? "Fácil" : d === "media" ? "Média" : "Difícil"}
-              </button>
-            ))}
+          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-3 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <span className="font-medium">Dificuldade:</span>
+              {(["facil", "media", "dificil"] as const).map((d) => (
+                <button
+                  key={d}
+                  onClick={() => updateSubject(id, { dificuldade: d })}
+                  className={cn(
+                    "rounded-full border px-2.5 py-1 capitalize transition-colors",
+                    subject.dificuldade === d
+                      ? "border-primary bg-primary-soft text-accent-foreground"
+                      : "border-border hover:bg-muted",
+                  )}
+                >
+                  {d === "facil" ? "Fácil" : d === "media" ? "Média" : "Difícil"}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-medium">Cor:</span>
+              <label className="flex h-7 w-9 cursor-pointer items-center justify-center overflow-hidden rounded-md border border-border">
+                <input
+                  type="color"
+                  value={subject.cor}
+                  onChange={(e) => updateSubject(id, { cor: e.target.value })}
+                  className="h-12 w-12 cursor-pointer border-0 bg-transparent p-0"
+                  aria-label="Escolher cor da disciplina"
+                />
+              </label>
+            </div>
           </div>
         </Card>
       )}
