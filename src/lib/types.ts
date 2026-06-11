@@ -16,9 +16,12 @@ export type MicroThemeStatus =
 
 export type Dificuldade = "facil" | "media" | "dificil";
 
+export type EstagioHoras = "ate4" | "mais4";
+
 export interface UserProfile {
   semestre: number;
   trabalhaEstagia: boolean;
+  estagioHoras?: EstagioHoras;
   horasSemana: number;
   objetivo: Goal;
   onboardingCompleto: boolean;
