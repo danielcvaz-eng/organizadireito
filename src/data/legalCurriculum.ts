@@ -563,171 +563,196 @@ const processoCivil: DisciplineCurriculum = {
 };
 
 // ============================================================
-// DIREITO ADMINISTRATIVO
+// DIREITO ADMINISTRATIVO — base completa (módulos reutilizáveis)
+// Administrativo I: fundamentos, organização, poderes, atos, bens públicos
+// Administrativo II: agentes, licitações, serviços, controle
 // ============================================================
-const administrativo: DisciplineCurriculum = {
-  catalogId: "administrativo",
-  modules: [
-    {
-      id: k("adm", "intro"),
-      nome: "Introdução e Princípios",
-      themes: [
-        {
-          id: k("adm", "intro", "conceito"),
-          nome: "Conceito e regime jurídico-administrativo",
-          microthemes: [
-            { id: k("adm", "intro", "conceito", "1"), nome: "Conceito de Direito Administrativo" },
-            { id: k("adm", "intro", "conceito", "2"), nome: "Fontes e sistemas" },
-            { id: k("adm", "intro", "conceito", "3"), nome: "Regime jurídico-administrativo" },
-          ],
-        },
-        {
-          id: k("adm", "intro", "principios"),
-          nome: "Princípios da Administração Pública",
-          microthemes: [
-            { id: k("adm", "intro", "principios", "1"), nome: "Legalidade" },
-            { id: k("adm", "intro", "principios", "2"), nome: "Impessoalidade" },
-            { id: k("adm", "intro", "principios", "3"), nome: "Moralidade" },
-            { id: k("adm", "intro", "principios", "4"), nome: "Publicidade" },
-            { id: k("adm", "intro", "principios", "5"), nome: "Eficiência" },
-            { id: k("adm", "intro", "principios", "6"), nome: "Princípios infraconstitucionais (proporcionalidade, motivação...)" },
-          ],
-        },
-      ],
-    },
-    {
-      id: k("adm", "organizacao"),
-      nome: "Organização Administrativa",
-      themes: [
-        {
-          id: k("adm", "organizacao", "centralizada"),
-          nome: "Administração direta e indireta",
-          microthemes: [
-            { id: k("adm", "organizacao", "centralizada", "1"), nome: "Desconcentração e descentralização" },
-            { id: k("adm", "organizacao", "centralizada", "2"), nome: "Autarquias" },
-            { id: k("adm", "organizacao", "centralizada", "3"), nome: "Fundações públicas" },
-            { id: k("adm", "organizacao", "centralizada", "4"), nome: "Empresas públicas e sociedades de economia mista" },
-            { id: k("adm", "organizacao", "centralizada", "5"), nome: "Entes de cooperação (S e OS, OSCIP)" },
-          ],
-        },
-      ],
-    },
-    {
-      id: k("adm", "atos"),
-      nome: "Atos Administrativos",
-      themes: [
-        {
-          id: k("adm", "atos", "teoria"),
-          nome: "Teoria dos atos administrativos",
-          microthemes: [
-            { id: k("adm", "atos", "teoria", "1"), nome: "Conceito, requisitos e atributos" },
-            { id: k("adm", "atos", "teoria", "2"), nome: "Classificação dos atos" },
-            { id: k("adm", "atos", "teoria", "3"), nome: "Discricionariedade e vinculação" },
-            { id: k("adm", "atos", "teoria", "4"), nome: "Extinção, revogação e anulação" },
-            { id: k("adm", "atos", "teoria", "5"), nome: "Convalidação" },
-          ],
-        },
-      ],
-    },
-    {
-      id: k("adm", "poderes"),
-      nome: "Poderes da Administração",
-      themes: [
-        {
-          id: k("adm", "poderes", "tipos"),
-          nome: "Espécies de poderes administrativos",
-          microthemes: [
-            { id: k("adm", "poderes", "tipos", "1"), nome: "Poder vinculado e discricionário" },
-            { id: k("adm", "poderes", "tipos", "2"), nome: "Poder hierárquico" },
-            { id: k("adm", "poderes", "tipos", "3"), nome: "Poder disciplinar" },
-            { id: k("adm", "poderes", "tipos", "4"), nome: "Poder regulamentar" },
-            { id: k("adm", "poderes", "tipos", "5"), nome: "Poder de polícia" },
-          ],
-        },
-      ],
-    },
-    {
-      id: k("adm", "servidores"),
-      nome: "Agentes Públicos",
-      themes: [
-        {
-          id: k("adm", "servidores", "regime"),
-          nome: "Regime dos servidores",
-          microthemes: [
-            { id: k("adm", "servidores", "regime", "1"), nome: "Classificação dos agentes públicos" },
-            { id: k("adm", "servidores", "regime", "2"), nome: "Cargo, emprego e função" },
-            { id: k("adm", "servidores", "regime", "3"), nome: "Provimento, vacância e estabilidade" },
-            { id: k("adm", "servidores", "regime", "4"), nome: "Direitos, deveres e responsabilidades (Lei 8.112/90)" },
-          ],
-        },
-      ],
-    },
-    {
-      id: k("adm", "licitacoes"),
-      nome: "Licitações e Contratos",
-      themes: [
-        {
-          id: k("adm", "licitacoes", "licit"),
-          nome: "Licitação (Lei 14.133/21)",
-          microthemes: [
-            { id: k("adm", "licitacoes", "licit", "1"), nome: "Princípios e objetivos" },
-            { id: k("adm", "licitacoes", "licit", "2"), nome: "Modalidades e critérios de julgamento" },
-            { id: k("adm", "licitacoes", "licit", "3"), nome: "Fases do processo licitatório" },
-            { id: k("adm", "licitacoes", "licit", "4"), nome: "Dispensa e inexigibilidade" },
-          ],
-        },
-        {
-          id: k("adm", "licitacoes", "contratos"),
-          nome: "Contratos administrativos",
-          microthemes: [
-            { id: k("adm", "licitacoes", "contratos", "1"), nome: "Características e cláusulas exorbitantes" },
-            { id: k("adm", "licitacoes", "contratos", "2"), nome: "Execução e alteração" },
-            { id: k("adm", "licitacoes", "contratos", "3"), nome: "Extinção e sanções" },
-          ],
-        },
-      ],
-    },
-    {
-      id: k("adm", "servicos"),
-      nome: "Serviços Públicos",
-      themes: [
-        {
-          id: k("adm", "servicos", "geral"),
-          nome: "Teoria dos serviços públicos",
-          microthemes: [
-            { id: k("adm", "servicos", "geral", "1"), nome: "Conceito, classificação e princípios" },
-            { id: k("adm", "servicos", "geral", "2"), nome: "Concessão e permissão" },
-            { id: k("adm", "servicos", "geral", "3"), nome: "Parcerias Público-Privadas" },
-          ],
-        },
-      ],
-    },
-    {
-      id: k("adm", "controle"),
-      nome: "Controle e Responsabilidade",
-      themes: [
-        {
-          id: k("adm", "controle", "tipos"),
-          nome: "Controle da Administração",
-          microthemes: [
-            { id: k("adm", "controle", "tipos", "1"), nome: "Controle interno e externo" },
-            { id: k("adm", "controle", "tipos", "2"), nome: "Controle judicial" },
-            { id: k("adm", "controle", "tipos", "3"), nome: "Tribunais de Contas" },
-          ],
-        },
-        {
-          id: k("adm", "controle", "resp"),
-          nome: "Responsabilidade do Estado e Improbidade",
-          microthemes: [
-            { id: k("adm", "controle", "resp", "1"), nome: "Responsabilidade civil do Estado (art. 37, §6º)" },
-            { id: k("adm", "controle", "resp", "2"), nome: "Excludentes e ação regressiva" },
-            { id: k("adm", "controle", "resp", "3"), nome: "Improbidade administrativa (Lei 8.429/92)" },
-          ],
-        },
-      ],
-    },
-  ],
-};
+const admModulosI: CurriculumModule[] = [
+  {
+    id: k("adm", "intro"),
+    nome: "Administração Pública e Princípios",
+    themes: [
+      {
+        id: k("adm", "intro", "conceito"),
+        nome: "Administração Pública e regime jurídico",
+        microthemes: [
+          { id: k("adm", "intro", "conceito", "1"), nome: "Conceito de Direito Administrativo" },
+          { id: k("adm", "intro", "conceito", "2"), nome: "Fontes e sistemas" },
+          { id: k("adm", "intro", "conceito", "3"), nome: "Regime jurídico-administrativo" },
+          { id: k("adm", "intro", "conceito", "4"), nome: "Administração Pública: sentido formal e material" },
+        ],
+      },
+      {
+        id: k("adm", "intro", "principios"),
+        nome: "Princípios da Administração Pública",
+        microthemes: [
+          { id: k("adm", "intro", "principios", "1"), nome: "Legalidade" },
+          { id: k("adm", "intro", "principios", "2"), nome: "Impessoalidade" },
+          { id: k("adm", "intro", "principios", "3"), nome: "Moralidade" },
+          { id: k("adm", "intro", "principios", "4"), nome: "Publicidade" },
+          { id: k("adm", "intro", "principios", "5"), nome: "Eficiência" },
+          { id: k("adm", "intro", "principios", "6"), nome: "Princípios infraconstitucionais (proporcionalidade, motivação...)" },
+        ],
+      },
+    ],
+  },
+  {
+    id: k("adm", "organizacao"),
+    nome: "Organização Administrativa",
+    themes: [
+      {
+        id: k("adm", "organizacao", "centralizada"),
+        nome: "Administração direta e indireta",
+        microthemes: [
+          { id: k("adm", "organizacao", "centralizada", "1"), nome: "Desconcentração e descentralização" },
+          { id: k("adm", "organizacao", "centralizada", "2"), nome: "Autarquias" },
+          { id: k("adm", "organizacao", "centralizada", "3"), nome: "Fundações públicas" },
+          { id: k("adm", "organizacao", "centralizada", "4"), nome: "Empresas públicas e sociedades de economia mista" },
+          { id: k("adm", "organizacao", "centralizada", "5"), nome: "Entes de cooperação (S e OS, OSCIP)" },
+        ],
+      },
+    ],
+  },
+  {
+    id: k("adm", "poderes"),
+    nome: "Poderes da Administração",
+    themes: [
+      {
+        id: k("adm", "poderes", "tipos"),
+        nome: "Espécies de poderes administrativos",
+        microthemes: [
+          { id: k("adm", "poderes", "tipos", "1"), nome: "Poder vinculado e discricionário" },
+          { id: k("adm", "poderes", "tipos", "2"), nome: "Poder hierárquico" },
+          { id: k("adm", "poderes", "tipos", "3"), nome: "Poder disciplinar" },
+          { id: k("adm", "poderes", "tipos", "4"), nome: "Poder regulamentar" },
+          { id: k("adm", "poderes", "tipos", "5"), nome: "Poder de polícia" },
+        ],
+      },
+    ],
+  },
+  {
+    id: k("adm", "atos"),
+    nome: "Atos Administrativos",
+    themes: [
+      {
+        id: k("adm", "atos", "teoria"),
+        nome: "Teoria dos atos administrativos",
+        microthemes: [
+          { id: k("adm", "atos", "teoria", "1"), nome: "Conceito, requisitos e atributos" },
+          { id: k("adm", "atos", "teoria", "2"), nome: "Classificação dos atos" },
+          { id: k("adm", "atos", "teoria", "3"), nome: "Discricionariedade e vinculação" },
+          { id: k("adm", "atos", "teoria", "4"), nome: "Extinção, revogação e anulação" },
+          { id: k("adm", "atos", "teoria", "5"), nome: "Convalidação" },
+        ],
+      },
+    ],
+  },
+  {
+    id: k("adm", "bens"),
+    nome: "Bens Públicos",
+    themes: [
+      {
+        id: k("adm", "bens", "geral"),
+        nome: "Regime jurídico dos bens públicos",
+        microthemes: [
+          { id: k("adm", "bens", "geral", "1"), nome: "Conceito e classificação dos bens públicos" },
+          { id: k("adm", "bens", "geral", "2"), nome: "Afetação e desafetação" },
+          { id: k("adm", "bens", "geral", "3"), nome: "Regime jurídico (inalienabilidade, impenhorabilidade, imprescritibilidade)" },
+          { id: k("adm", "bens", "geral", "4"), nome: "Uso de bem público por particular (autorização, permissão, concessão)" },
+          { id: k("adm", "bens", "geral", "5"), nome: "Espécies de bens (terras devolutas, terrenos de marinha, etc.)" },
+        ],
+      },
+    ],
+  },
+];
+
+const admModulosII: CurriculumModule[] = [
+  {
+    id: k("adm", "servidores"),
+    nome: "Agentes Públicos",
+    themes: [
+      {
+        id: k("adm", "servidores", "regime"),
+        nome: "Regime dos servidores",
+        microthemes: [
+          { id: k("adm", "servidores", "regime", "1"), nome: "Classificação dos agentes públicos" },
+          { id: k("adm", "servidores", "regime", "2"), nome: "Cargo, emprego e função" },
+          { id: k("adm", "servidores", "regime", "3"), nome: "Provimento, vacância e estabilidade" },
+          { id: k("adm", "servidores", "regime", "4"), nome: "Direitos, deveres e responsabilidades (Lei 8.112/90)" },
+        ],
+      },
+    ],
+  },
+  {
+    id: k("adm", "licitacoes"),
+    nome: "Licitações e Contratos",
+    themes: [
+      {
+        id: k("adm", "licitacoes", "licit"),
+        nome: "Licitação (Lei 14.133/21)",
+        microthemes: [
+          { id: k("adm", "licitacoes", "licit", "1"), nome: "Princípios e objetivos" },
+          { id: k("adm", "licitacoes", "licit", "2"), nome: "Modalidades e critérios de julgamento" },
+          { id: k("adm", "licitacoes", "licit", "3"), nome: "Fases do processo licitatório" },
+          { id: k("adm", "licitacoes", "licit", "4"), nome: "Dispensa e inexigibilidade" },
+        ],
+      },
+      {
+        id: k("adm", "licitacoes", "contratos"),
+        nome: "Contratos administrativos",
+        microthemes: [
+          { id: k("adm", "licitacoes", "contratos", "1"), nome: "Características e cláusulas exorbitantes" },
+          { id: k("adm", "licitacoes", "contratos", "2"), nome: "Execução e alteração" },
+          { id: k("adm", "licitacoes", "contratos", "3"), nome: "Extinção e sanções" },
+        ],
+      },
+    ],
+  },
+  {
+    id: k("adm", "servicos"),
+    nome: "Serviços Públicos",
+    themes: [
+      {
+        id: k("adm", "servicos", "geral"),
+        nome: "Teoria dos serviços públicos",
+        microthemes: [
+          { id: k("adm", "servicos", "geral", "1"), nome: "Conceito, classificação e princípios" },
+          { id: k("adm", "servicos", "geral", "2"), nome: "Concessão e permissão" },
+          { id: k("adm", "servicos", "geral", "3"), nome: "Parcerias Público-Privadas" },
+        ],
+      },
+    ],
+  },
+  {
+    id: k("adm", "controle"),
+    nome: "Controle e Responsabilidade",
+    themes: [
+      {
+        id: k("adm", "controle", "tipos"),
+        nome: "Controle da Administração",
+        microthemes: [
+          { id: k("adm", "controle", "tipos", "1"), nome: "Controle interno e externo" },
+          { id: k("adm", "controle", "tipos", "2"), nome: "Controle judicial" },
+          { id: k("adm", "controle", "tipos", "3"), nome: "Tribunais de Contas" },
+        ],
+      },
+      {
+        id: k("adm", "controle", "resp"),
+        nome: "Responsabilidade do Estado e Improbidade",
+        microthemes: [
+          { id: k("adm", "controle", "resp", "1"), nome: "Responsabilidade civil do Estado (art. 37, §6º)" },
+          { id: k("adm", "controle", "resp", "2"), nome: "Excludentes e ação regressiva" },
+          { id: k("adm", "controle", "resp", "3"), nome: "Improbidade administrativa (Lei 8.429/92)" },
+        ],
+      },
+    ],
+  },
+];
+
+const administrativo1: DisciplineCurriculum = { catalogId: "administrativo-1", modules: admModulosI };
+const administrativo2: DisciplineCurriculum = { catalogId: "administrativo-2", modules: admModulosII };
+// Alias retrocompatível
+const administrativo: DisciplineCurriculum = { catalogId: "administrativo", modules: admModulosI };
 
 export const LEGAL_CURRICULUM: DisciplineCurriculum[] = [
   constitucional,
@@ -735,6 +760,8 @@ export const LEGAL_CURRICULUM: DisciplineCurriculum[] = [
   civil2,
   processoCivil,
   administrativo,
+  administrativo1,
+  administrativo2,
 ];
 
 export function getCurriculum(catalogId?: string): DisciplineCurriculum | undefined {
