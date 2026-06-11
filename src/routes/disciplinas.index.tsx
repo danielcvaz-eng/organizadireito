@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Plus, ArrowRight, BookOpen } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { SUBJECT_CATALOG } from "@/data/subjectCatalog";
+import { countMicrothemes } from "@/data/legalCurriculum";
 
 export const Route = createFileRoute("/disciplinas/")({
   head: () => ({
