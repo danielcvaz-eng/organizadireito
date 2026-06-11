@@ -248,6 +248,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                     p.microthemeId === task.microthemeRef!.microthemeId,
                 )?.status ?? "nao_iniciado";
               next = upsertProgress(next, subject.id, task.microthemeRef.microthemeId, advanceStatus(cur));
+              // Recalcula o ciclo: o microtema avançou, o planner deve
+              // sugerir o próximo da disciplina automaticamente.
+              next = regenerate(next);
             }
           }
           return next;
