@@ -122,7 +122,7 @@ export const SEMESTER_CURRICULUM: SemesterEntry[] = [
     semestre: 5,
     disciplines: [
       d(5, "Crimes em Espécie (Direito Penal III)"),
-      d(5, "Direito Administrativo II", "administrativo"),
+      d(5, "Direito Administrativo II", "administrativo-2"),
       d(5, "Direito do Trabalho I", "trabalho"),
       d(5, "Direito Internacional Privado"),
       d(5, "Execução e Cumprimento de Sentença (Processo Civil IV)"),
