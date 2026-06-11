@@ -109,7 +109,7 @@ export const SEMESTER_CURRICULUM: SemesterEntry[] = [
   {
     semestre: 4,
     disciplines: [
-      d(4, "Direito Administrativo I", "administrativo"),
+      d(4, "Direito Administrativo I", "administrativo-1"),
       d(4, "Direito Internacional Público", "internacional"),
       d(4, "Jurisdição Constitucional (Constitucional III)", "constitucional"),
       d(4, "Direito dos Contratos (Direito Civil III)"),
