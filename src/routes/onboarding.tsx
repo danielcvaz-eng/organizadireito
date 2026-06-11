@@ -202,7 +202,10 @@ function OnboardingPage() {
                   <button
                     key={String(o.value)}
                     type="button"
-                    onClick={() => setTrabalhaEstagia(o.value)}
+                    onClick={() => {
+                      setTrabalhaEstagia(o.value);
+                      if (!o.value) setEstagioHoras(null);
+                    }}
                     className={`rounded-xl border p-6 text-left transition-colors ${
                       trabalhaEstagia === o.value
                         ? "border-primary bg-primary-soft"
@@ -213,6 +216,36 @@ function OnboardingPage() {
                   </button>
                 ))}
               </div>
+
+              {trabalhaEstagia === true && (
+                <div className="space-y-3 rounded-xl border border-border bg-muted/30 p-4">
+                  <div>
+                    <div className="text-sm font-semibold">Quantas horas por dia?</div>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Vamos calibrar a carga de estudos para a sua rotina real.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { value: "ate4" as const, label: "Até 4 horas" },
+                      { value: "mais4" as const, label: "Mais de 4 horas" },
+                    ].map((o) => (
+                      <button
+                        key={o.value}
+                        type="button"
+                        onClick={() => setEstagioHoras(o.value)}
+                        className={`rounded-lg border p-3 text-left text-sm font-medium transition-colors ${
+                          estagioHoras === o.value
+                            ? "border-primary bg-primary-soft"
+                            : "border-border bg-background hover:bg-muted"
+                        }`}
+                      >
+                        {o.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
