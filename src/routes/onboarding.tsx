@@ -78,7 +78,11 @@ function OnboardingPage() {
 
   function canAdvance() {
     if (step === 0) return semestre > 0;
-    if (step === 1) return trabalhaEstagia !== null;
+    if (step === 1) {
+      if (trabalhaEstagia === null) return false;
+      if (trabalhaEstagia === true && estagioHoras === null) return false;
+      return true;
+    }
     if (step === 2) return horasSemana > 0;
     if (step === 3) return selecionadas.length + extras.length > 0;
     if (step === 4) return objetivo !== null;
