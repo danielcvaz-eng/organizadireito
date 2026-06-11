@@ -94,6 +94,7 @@ function OnboardingPage() {
     setUser({
       semestre,
       trabalhaEstagia: trabalhaEstagia ?? false,
+      estagioHoras: trabalhaEstagia ? estagioHoras ?? undefined : undefined,
       horasSemana,
       objetivo,
       onboardingCompleto: true,
