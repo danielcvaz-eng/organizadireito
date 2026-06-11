@@ -370,7 +370,7 @@ function OnboardingPage() {
           {step === 4 && (
             <div className="space-y-5">
               <div>
-                <h2 className="text-2xl font-semibold tracking-tight">Qual seu objetivo agora?</h2>
+                <h2 className="text-2xl font-semibold tracking-tight">Qual é o seu principal foco neste momento?</h2>
                 <p className="mt-1 text-sm text-muted-foreground">Você pode mudar mais tarde nos Ajustes.</p>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
