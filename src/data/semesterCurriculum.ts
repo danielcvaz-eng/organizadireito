@@ -178,7 +178,9 @@ export const SEMESTER_CURRICULUM: SemesterEntry[] = [
 ];
 
 export function getDisciplinesBySemester(semestre: number): SemesterDiscipline[] {
-  return SEMESTER_CURRICULUM.find((e) => e.semestre === semestre)?.disciplines ?? [];
+  const list = SEMESTER_CURRICULUM.find((e) => e.semestre === semestre)?.disciplines ?? [];
+  // Cores distintas entre as disciplinas do mesmo semestre (por posição).
+  return list.map((disc, i) => ({ ...disc, cor: PALETTE[i % PALETTE.length] }));
 }
 
 export function findDiscipline(id: string): SemesterDiscipline | undefined {
