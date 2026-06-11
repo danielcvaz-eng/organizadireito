@@ -44,6 +44,7 @@ function OnboardingPage() {
 
   const [semestre, setSemestre] = useState<number>(3);
   const [trabalhaEstagia, setTrabalhaEstagia] = useState<boolean | null>(null);
+  const [estagioHoras, setEstagioHoras] = useState<EstagioHoras | null>(null);
   const [horasSemana, setHorasSemana] = useState<number>(10);
   const [selecionadas, setSelecionadas] = useState<string[]>([]);
   const [extras, setExtras] = useState<ExtraDiscipline[]>([]);
