@@ -125,8 +125,16 @@ function DisciplinasPage() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {state.subjects.map((s) => {
             const tasks = state.tasks.filter((t) => t.subjectId === s.id);
-            const done = tasks.filter((t) => t.status === "feito").length;
-            const progresso = tasks.length === 0 ? 0 : Math.round((done / tasks.length) * 100);
+            const totalMicro = countMicrothemes(s.catalogId);
+            const dominados = state.microthemeProgress.filter(
+              (p) => p.subjectId === s.id && p.status === "dominado",
+            ).length;
+            const progresso =
+              totalMicro > 0
+                ? Math.round((dominados / totalMicro) * 100)
+                : tasks.length === 0
+                  ? 0
+                  : Math.round((tasks.filter((t) => t.status === "feito").length / tasks.length) * 100);
             const próximas = state.assessments
               .filter((a) => a.subjectId === s.id && new Date(a.data) >= new Date(new Date().setHours(0, 0, 0, 0)))
               .sort((a, b) => a.data.localeCompare(b.data));
