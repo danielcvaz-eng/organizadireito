@@ -12,7 +12,7 @@ import {
   type SemesterDiscipline,
 } from "@/data/semesterCurriculum";
 
-import type { Goal } from "@/lib/types";
+import type { Goal, EstagioHoras } from "@/lib/types";
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({
