@@ -160,7 +160,9 @@ function DisciplinasPage() {
                   </div>
                   <div className="mt-4 flex items-center justify-between text-xs">
                     <span className="text-muted-foreground">
-                      {tasks.length} tarefa{tasks.length === 1 ? "" : "s"}
+                      {totalMicro > 0
+                        ? `${dominados}/${totalMicro} microtemas`
+                        : `${tasks.length} tarefa${tasks.length === 1 ? "" : "s"}`}
                     </span>
                     {próximas[0] ? (
                       <span className="text-muted-foreground">
