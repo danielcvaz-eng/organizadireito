@@ -104,12 +104,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const mutate = (fn: (s: AppState) => AppState) => setState((s) => fn(s));
 
     function regenerate(s: AppState): AppState {
-      const now = startOfToday();
+      // Mantém apenas tarefas de ciclo já concluídas (histórico) e
+      // tarefas que não pertencem ao ciclo (manuais, revisões espaçadas, avaliações).
       const kept = s.tasks.filter((t) => {
         if (t.origem !== "ciclo") return true;
-        if (t.status === "feito") return true;
-        if (!t.prazo) return true;
-        return new Date(t.prazo) < now; // mantém passados
+        return t.status === "feito";
       });
       const next = generateWeeklyCycle(s);
       return { ...s, tasks: [...kept, ...next] };
