@@ -163,7 +163,7 @@ function OnboardingPage() {
               <div>
                 <h2 className="text-2xl font-semibold tracking-tight">Em qual semestre você está?</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Vamos mostrar as disciplinas oficiais desse semestre.
+                  Vamos mostrar as disciplinas desse semestre como sugestão inicial.
                 </p>
               </div>
               <div className="grid grid-cols-5 gap-2">
