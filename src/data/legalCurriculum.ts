@@ -754,7 +754,12 @@ const administrativo2: DisciplineCurriculum = { catalogId: "administrativo-2", m
 // Alias retrocompatível
 const administrativo: DisciplineCurriculum = { catalogId: "administrativo", modules: admModulosI };
 
+import { SEMESTRE_4 } from "./curriculum/semestre4";
+
 export const LEGAL_CURRICULUM: DisciplineCurriculum[] = [
+  // Semestre 4 vem primeiro: substitui versões legadas com mesmo catalogId
+  // (ex.: administrativo-1) pela base curricular oficial completa.
+  ...SEMESTRE_4,
   constitucional,
   civil1,
   civil2,
