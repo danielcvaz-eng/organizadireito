@@ -111,10 +111,10 @@ export const SEMESTER_CURRICULUM: SemesterEntry[] = [
     disciplines: [
       d(4, "Direito Administrativo I", "administrativo-1"),
       d(4, "Direito Internacional Público", "internacional"),
-      d(4, "Jurisdição Constitucional (Constitucional III)", "constitucional"),
-      d(4, "Direito dos Contratos (Direito Civil III)"),
+      d(4, "Jurisdição Constitucional (Constitucional III)", "constitucional-3"),
+      d(4, "Direito dos Contratos (Direito Civil III)", "civil-3"),
       d(4, "Métodos de Solução de Conflitos"),
-      d(4, "Sistema Recursal do Processo Civil (Processo Civil III)"),
+      d(4, "Sistema Recursal do Processo Civil (Processo Civil III)", "processo-civil-3"),
       d(4, "Teoria da Pena (Direito Penal II)", "penal-2"),
     ],
   },

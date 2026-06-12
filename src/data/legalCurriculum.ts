@@ -1,5 +1,6 @@
 // Estrutura acadêmica oficial: Disciplina → Módulo → Tema → Microtema
 // Base inicial. Preparada para crescer para centenas de disciplinas.
+import { SEMESTRE_4 } from "./curriculum/semestre4";
 
 export interface Microtheme {
   id: string;
@@ -754,7 +755,11 @@ const administrativo2: DisciplineCurriculum = { catalogId: "administrativo-2", m
 // Alias retrocompatível
 const administrativo: DisciplineCurriculum = { catalogId: "administrativo", modules: admModulosI };
 
+
 export const LEGAL_CURRICULUM: DisciplineCurriculum[] = [
+  // Semestre 4 vem primeiro: substitui versões legadas com mesmo catalogId
+  // (ex.: administrativo-1) pela base curricular oficial completa.
+  ...SEMESTRE_4,
   constitucional,
   civil1,
   civil2,

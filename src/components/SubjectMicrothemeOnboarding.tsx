@@ -9,10 +9,10 @@ import { Sparkles, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const OPTIONS: { value: MicroThemeStatus; label: string; short: string; color: string }[] = [
-  { value: "nao_iniciado", label: "Nunca estudei", short: "Nunca", color: "bg-red-100 text-red-700 border-red-200" },
-  { value: "superficial", label: "Vi superficialmente", short: "Vi", color: "bg-amber-100 text-amber-700 border-amber-200" },
-  { value: "revisar", label: "Já estudei, preciso revisar", short: "Revisar", color: "bg-blue-100 text-blue-700 border-blue-200" },
-  { value: "dominado", label: "Estou seguro", short: "Seguro", color: "bg-emerald-100 text-emerald-700 border-emerald-200" },
+  { value: "nao_iniciado", label: "Nunca vi", short: "Nunca", color: "bg-red-100 text-red-700 border-red-200" },
+  { value: "superficial", label: "Já vi", short: "Já vi", color: "bg-amber-100 text-amber-700 border-amber-200" },
+  { value: "revisar", label: "Preciso revisar", short: "Revisar", color: "bg-blue-100 text-blue-700 border-blue-200" },
+  { value: "dominado", label: "Seguro", short: "Seguro", color: "bg-emerald-100 text-emerald-700 border-emerald-200" },
 ];
 
 export function SubjectMicrothemeOnboarding({
